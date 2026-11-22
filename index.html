@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StreamVSR — Unified Streaming Video Super-Resolution, Stereo, and Refocusing</title>
+<meta name="description" content="StreamVSR restores each incoming block of a monocular video stream once and renders super-resolution, stereo, and refocused views from the same reconstruction.">
+<!-- TODO(review): the paper is under double-blind review; remove this noindex tag once it is public. -->
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:title" content="StreamVSR: Unified Streaming Visual Model for Video Super-Resolution, Stereo Synthesis, and Refocusing">
+<meta property="og:description" content="One source reconstruction, three outputs: streaming super-resolution, monocular-to-stereo synthesis, and controllable refocusing for real and world-model videos.">
+<meta property="og:image" content="https://oranger-l.github.io/StreamVSR/static/img/fig/fig1_teaser.jpg">
+<meta property="og:url" content="https://oranger-l.github.io/StreamVSR/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="static/img/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="static/css/style.css?v=9">
+</head>
+<body>
+
+<!-- ============ navigation ============ -->
+<nav class="topnav" id="topnav">
+  <a class="brand" href="#top"><img src="static/img/logo.png" alt=""><span>StreamVSR</span></a>
+  <div class="links">
+    <a href="#overview">Overview</a>
+    <a href="#method">Method</a>
+    <a href="#sr">Super-Resolution</a>
+    <a href="#optics">Stereo &amp; Refocus</a>
+    <a href="#worlds">World Models</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#joint">Joint Training</a>
+    <a href="#speed">Efficiency</a>
+    <a href="#bibtex">BibTeX</a>
+  </div>
+</nav>
+
+<!-- ============ hero ============ -->
+<header class="hero" id="top">
+  <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  <div class="inner">
+    <span class="badge"><span class="dot"></span>Streaming · Super-Resolution · Stereo · Refocusing</span>
+    <h1><img src="static/img/logo.png" alt=""><span>Stream<span class="grad">VSR</span></span></h1>
+    <p class="subtitle">Unified Streaming Visual Model for Video Super-Resolution, Stereo Synthesis, and Refocusing</p>
+    <!-- TODO(authors): replace with the author list and affiliations when the paper is public. -->
+    <p class="authors">Anonymous Authors</p>
+    <p class="affil">Paper under review</p>
+    <div class="buttons">
+      <!-- TODO(links): set href and remove class "soon" when each link is live. -->
+      <a class="btn primary soon" href="#" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>Paper (soon)</a>
+      <a class="btn soon" href="#" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>arXiv (soon)</a>
+      <a class="btn soon" href="#" aria-disabled="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.8.1-.7.1-.7 1.2.1 1.9 1.3 1.9 1.3 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-6 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.7 1.7.3 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>Code (soon)</a>
+      <a class="btn" href="#gallery"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>Video Gallery</a>
+      <a class="btn" href="#bibtex"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 7h4v4H7zM13 7h4v4h-4z"/><path d="M7 11c0 3-1 4-3 5M13 11c0 3-1 4-3 5"/></svg>BibTeX</a>
+    </div>
+    <p class="tldr"><b>TL;DR</b> — StreamVSR restores each incoming block of a monocular video <b>once</b>, predicts depth on a common scale, and renders <b>super-resolved</b>, <b>stereo</b>, and <b>refocused</b> views from that single reconstruction. Training the decoder with all three signals makes every output better than training it for one task.</p>
+    <a class="scrollcue" href="#overview"><span></span>See it in action</a>
+  </div>
+</header>
+
+<!-- ============ overview ============ -->
+<section class="block" id="overview">
+  <div class="wrap">
+    <div class="eyebrow">One stream in, three outputs out</div>
+    <h2 class="title">Finer detail, a second eye, and a movable focal plane</h2>
+    <p class="lead">When a world model or a camera streams monocular video, a viewer may want more detail, a stereo view, or to shift focus between objects. All three depend on the same surfaces, so StreamVSR reconstructs those surfaces once per block and serves every request from them.</p>
+
+    <div class="split reveal">
+      <figure class="card" style="padding:12px;overflow:hidden">
+        <video class="figimg" src="static/video/gallery/helix-084.mp4" poster="static/img/gallery/helix-084.jpg" autoplay muted loop playsinline></video>
+        <figcaption style="margin:10px 6px 2px">A HelixWorld rollout processed by StreamVSR. <b>Top:</b> bicubic ×4 vs. streaming super-resolution. <b>Bottom:</b> red/cyan stereo and a near-to-far refocus sweep, rendered from the same restored frames.</figcaption>
+      </figure>
+      <div>
+        <ul class="bullets">
+          <li><b>Streaming.</b> After a first block of 25 inputs, each block consumes and emits eight frames with four frames of lookahead. A persistent source state carries context across blocks.</li>
+          <li><b>Restore once.</b> The restored source is the super-resolution output and the input of the optical renderer, so extra viewing requests reuse it instead of restoring again.</li>
+          <li><b>Render, then repair.</b> Stereo and refocused views are rendered from the restored image and predicted depth, then a light head repairs disocclusions and defocus boundaries.</li>
+          <li><b>Learn from all three.</b> The source view supervises texture, the right view supervises where texture lands, and the refocused view supervises what stays sharp; all three train one decoder.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-top:34px">
+      <div class="card stat reveal"><span class="tag all">Joint training</span><div class="num sm">+0.60 / +0.78 / +0.96<small> dB</small></div><div class="lbl">PSNR gain of one jointly tuned model over three single-task models (SR / stereo / refocus) at equal training time, Captured LF30.</div></div>
+      <div class="card stat reveal"><span class="tag st">Stereo</span><div class="num">−34<small>%</small></div><div class="lbl">Right-view LPIPS on Mono2Stereo relative to the best specialist (0.200 vs. 0.304, StereoCrafter).</div></div>
+      <div class="card stat reveal"><span class="tag sr">SR + Refocus</span><div class="num">4/4 · 5/5</div><div class="lbl">Best on all four no-reference SR metrics (VideoLQ50) and all five refocusing metrics (TartanAir) among the evaluated specialists.</div></div>
+      <div class="card stat reveal"><span class="tag rf">Serving</span><div class="num">−56<small>%</small></div><div class="lbl">Time for seven 4K viewing requests over the next eight frames when the reconstruction is shared (15.45 s vs. 34.85 s), with identical output pixels.</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="block tint">
+  <div class="wrap">
+    <figure class="card pad reveal">
+      <img class="figimg" src="static/img/fig/fig1_teaser.jpg" alt="StreamVSR teaser figure" loading="lazy">
+      <figcaption><b>One source reconstruction, three outputs.</b> Top: task-specific pipelines versus shared streaming reconstruction, and PSNR of joint versus single-task adaptation at matched training time. Bottom: super-resolution, stereo synthesis, and controllable refocusing on conventional videos (first row) and world-model videos (second row).</figcaption>
+    </figure>
+    <div class="card pad reveal" style="margin-top:22px">
+      <div class="eyebrow">Abstract</div>
+      <div class="abstract"><p>As a visual world model generates a monocular video stream, a viewer may want to see finer detail, view the scene in stereo, or shift focus between objects. All three requests depend on the same surfaces. Super-resolution recovers their texture, and depth determines both where that texture appears in the other eye and how sharp it appears at a chosen focus. We introduce <span class="hl">StreamVSR</span>, a streaming model that unifies video super-resolution, monocular-to-stereo synthesis, and controllable refocusing. With four frames of lookahead, StreamVSR <span class="hl">restores each incoming block once</span> and estimates depth on a common scale across blocks. The restored frames provide the super-resolution output and, together with depth, the basis for rendering stereo and refocused views. During joint training, the source view supervises texture, the right view constrains its placement, and the refocused view constrains which details remain sharp. All three signals train the same decoder. On 30 captured light-field sequences, <span class="hl">joint tuning improves all three tasks</span> over separate tuning at equal training time. StreamVSR leads the evaluated specialists on all reported metrics for super-resolution on VideoLQ50 and synthetic refocusing on the TartanAir test set. On Mono2Stereo, StreamVSR achieves approximately <span class="hl">34% lower right-view LPIPS</span> than the best specialist baseline. For seven 4K viewing requests, reusing the reconstruction <span class="hl">cuts processing time by 56%</span> for the next eight frames after warm-up compared with restoring each block separately for each request, with identical output pixels.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ method ============ -->
+<section class="block" id="method">
+  <div class="wrap">
+    <div class="eyebrow">Method</div>
+    <h2 class="title">Prepare once per source block, render every request</h2>
+    <p class="lead">A one-step streaming DiT restores each block of the low-resolution stream. A temporal decoder returns canonical RGB, a depth prior gives geometry on a common scale, and an optical head renders the stereo and refocused views and repairs what rendering alone cannot fix.</p>
+    <figure class="card pad reveal">
+      <img class="figimg" src="static/img/fig/fig2_method.jpg" alt="StreamVSR method overview" loading="lazy">
+      <figcaption><b>Overview of StreamVSR.</b> Only the source stream updates the state for the next block; stereo and refocus requests read the same restored image and predicted geometry.</figcaption>
+    </figure>
+    <div class="ideas">
+      <div class="card idea reveal"><div class="k">01 · RESTORE ONCE</div><h3>Shared streaming reconstruction</h3><p>Each block is restored once with four frames of lookahead. The persistent source state keeps texture and depth consistent across blocks, and every viewing request reuses it.</p></div>
+      <div class="card idea reveal"><div class="k">02 · RENDER + REPAIR</div><h3>Geometry first, then repair</h3><p>Stereo views are warped and refocused views are blurred from the restored image and depth; a repair stage fills disocclusions and fixes defocus at depth edges.</p></div>
+      <div class="card idea reveal"><div class="k">03 · JOINT SIGNALS</div><h3>Three views supervise one decoder</h3><p>Texture is checked by the source view, its placement by the right view, and its sharpness by the refocused view. The shared decoder learns from all three.</p></div>
+    </div>
+    <figure class="card pad reveal" style="margin-top:22px">
+      <img class="figimg" src="static/img/fig/fig2b_joint_attention.jpg" alt="Attention change after joint supervision" loading="lazy">
+      <figcaption><b>What the optical losses teach.</b> In a refinement backbone whose adaptation alters only its last self-attention layer, stereo and refocus supervision shift attention from a token's own frame to the same position in other frames; joint supervision combines these changes.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ super-resolution ============ -->
+<section class="block tint" id="sr">
+  <div class="wrap">
+    <div class="eyebrow">Super-resolution</div>
+    <h2 class="title">4× streaming super-resolution</h2>
+    <p class="lead">Drag the divider. The video is a HelixWorld rollout reduced to 512×341 and super-resolved by StreamVSR to 2048×1364 in eleven causal blocks, one DiT evaluation per block.</p>
+
+    <div class="card panel reveal">
+      <div class="cmp" data-cmp data-video>
+        <video src="static/video/feature/blossom_lr.mp4" muted loop playsinline preload="auto"></video>
+        <div class="top"><video src="static/video/feature/blossom_sr.mp4" muted loop playsinline preload="auto"></video></div>
+        <span class="lab l">Generated video (768×512, browser upscaled)</span><span class="lab r">StreamVSR (2048×1364)</span>
+        <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+      </div>
+    </div>
+
+    <div class="grid2" style="margin-top:22px">
+      <div class="card panel reveal">
+        <div class="cmp" data-cmp>
+          <img src="static/img/sr/blossom_bicubic.jpg" alt="bicubic" loading="lazy">
+          <div class="top"><img src="static/img/sr/blossom_sr.jpg" alt="StreamVSR" loading="lazy"></div>
+          <span class="lab l">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
+          <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+        </div>
+        <p class="metric">Frame 48 of the rollout above, at full 2048×1364 resolution.</p>
+      </div>
+      <div class="card panel reveal">
+        <div class="cmp" data-cmp>
+          <img src="static/img/sr/elephant_bicubic.jpg" alt="bicubic" loading="lazy">
+          <div class="top"><img src="static/img/sr/elephant_sr.jpg" alt="StreamVSR" loading="lazy"></div>
+          <span class="lab l">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
+          <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+        </div>
+        <p class="metric">HelixWorld elephant rollout, frame 48. Skin folds and grass blades come back where bicubic blurs them.</p>
+      </div>
+    </div>
+
+    <h3 style="margin:46px 0 6px">Against super-resolution specialists</h3>
+    <p class="muted" style="margin:0 0 16px">A degraded Pexels clip (the clip of the main comparison figure). Pick a baseline and a frame; the right side is always StreamVSR. Numbers are crop LPIPS against the high-resolution frame (lower is better).</p>
+    <div class="card panel reveal" id="faces">
+      <div class="chiprow">
+        <span class="lbl">Compare with</span>
+        <div class="chips" data-group="method">
+          <button class="chip on" data-v="sol_refiner">SoL-Refiner</button>
+          <button class="chip" data-v="flashvsr_plus_base">FlashVSR Base</button>
+          <button class="chip" data-v="dove">DOVE</button>
+          <button class="chip" data-v="seedvr2_3b">SeedVR2-3B</button>
+          <button class="chip" data-v="open_h3_regen">Open-H3-Regen</button>
+          <button class="chip" data-v="lr">Input (×4 nearest)</button>
+          <button class="chip" data-v="hr">HR reference</button>
+        </div>
+      </div>
+      <div class="chiprow">
+        <span class="lbl">Frame</span>
+        <div class="chips" data-group="frame">
+          <button class="chip on" data-v="14">14</button>
+          <button class="chip" data-v="20">20</button>
+          <button class="chip" data-v="30">30</button>
+        </div>
+      </div>
+      <div class="ctxrow">
+        <div>
+          <div class="ctx"><img id="faces-ctx" src="static/img/faces/f14_context.jpg" alt="input frame"><div class="box" id="faces-box"></div></div>
+          <p class="metric" id="faces-metric"></p>
+        </div>
+        <div class="cmp" data-cmp id="faces-cmp">
+          <img id="faces-left" src="static/img/faces/f14_sol_refiner.jpg" alt="baseline">
+          <div class="top"><img id="faces-right" src="static/img/faces/f14_streamvsr.jpg" alt="StreamVSR"></div>
+          <span class="lab l" id="faces-llab">SoL-Refiner</span><span class="lab r">StreamVSR</span>
+          <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+        </div>
+      </div>
+    </div>
+
+    <figure class="card pad reveal" style="margin-top:22px">
+      <img class="figimg" src="static/img/fig/fig3_three_task_comparison.jpg" alt="Qualitative comparison on the three tasks" loading="lazy">
+      <figcaption><b>Qualitative comparison on the three tasks.</b> (a) 4× super-resolution, (b) stereo synthesis, and (c) refocusing; in (b) and (c) all methods take the same restored source. FlashVSR denotes the FlashVSR Base preset. Numbers are crop LPIPS against the target.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ stereo & refocus ============ -->
+<section class="block" id="optics">
+  <div class="wrap">
+    <div class="eyebrow">Stereo &amp; Refocus</div>
+    <h2 class="title">Move the focal plane, open a second eye</h2>
+    <p class="lead">Refocusing keeps the viewpoint and changes blur with distance from the focal plane; stereo places the restored texture in the other eye according to depth. Both are rendered from the same restored stream.</p>
+
+    <div class="grid2">
+      <div class="card scrub reveal" data-scrub>
+        <div class="vid"><video src="static/video/feature/robot_cloth_sweep.mp4" muted playsinline preload="auto"></video><span class="lab">Refocus · LingBot-World 2.0</span></div>
+        <div class="range"><span>near</span><input type="range" min="0" max="1000" value="0" aria-label="focal plane"><span>far</span></div>
+        <div class="row2"><span class="small muted">Drag to move the focal plane.</span><button class="mini-btn" data-play>▶ Sweep</button></div>
+      </div>
+      <div class="card scrub reveal" data-scrub>
+        <div class="vid"><video src="static/video/feature/torch_courtyard_sweep.mp4" muted playsinline preload="auto"></video><span class="lab">Refocus · LingBot-World 2.0</span></div>
+        <div class="range"><span>near</span><input type="range" min="0" max="1000" value="0" aria-label="focal plane"><span>far</span></div>
+        <div class="row2"><span class="small muted">Drag to move the focal plane.</span><button class="mini-btn" data-play>▶ Sweep</button></div>
+      </div>
+    </div>
+
+    <div class="card panel reveal" style="margin-top:22px" id="aperture">
+      <div class="chiprow">
+        <span class="lbl">Aperture</span>
+        <div class="chips" data-group="ap">
+          <button class="chip" data-v="lr">Generated input</button>
+          <button class="chip on" data-v="a065">0.65</button>
+          <button class="chip" data-v="a100">1.0</button>
+        </div>
+        <span class="small muted">Focus on the elephant; a larger aperture blurs the savannah more.</span>
+      </div>
+      <div class="vid"><video id="ap-video" src="static/video/feature/elephant_refocus_a065.mp4" muted loop playsinline autoplay preload="metadata"></video></div>
+    </div>
+
+    <h3 style="margin:46px 0 6px">Stereo from a single view</h3>
+    <p class="muted" style="margin:0 0 16px">Red/cyan anaglyphs from the same rollouts, shown at native panel resolution. <span class="glasses"><i style="background:#e5383b"></i><i style="background:#22c3d6"></i>Use red/cyan glasses for depth.</span></p>
+    <div class="grid3">
+      <div class="reveal"><div class="quad q-st" style="aspect-ratio:1080/788"><video data-lazy="static/video/gallery/helix-005.mp4" muted loop playsinline></video></div><p class="metric">Museum gallery · HelixWorld</p></div>
+      <div class="reveal"><div class="quad q-st" style="aspect-ratio:1080/788"><video data-lazy="static/video/gallery/helix-033.mp4" muted loop playsinline></video></div><p class="metric">Gothic cathedral nave · HelixWorld</p></div>
+      <div class="reveal"><div class="quad q-st" style="aspect-ratio:1080/788"><video data-lazy="static/video/gallery/helix-044.mp4" muted loop playsinline></video></div><p class="metric">Cobblestone alley · HelixWorld</p></div>
+    </div>
+
+    <figure class="card pad reveal" style="margin-top:28px">
+      <div class="split even" style="align-items:start">
+        <img class="figimg" src="static/img/fig/fig4_render_and_repair.jpg" alt="Optical stages" loading="lazy">
+        <div>
+          <h3>Why repair matters</h3>
+          <p class="muted" style="margin:0 0 12px">On TartanAir, rendering with predicted geometry already beats copying the source, and repair adds more: for stereo PSNR rises from 23.58 to 25.71 to 26.29 dB on the selected trajectories, and for refocusing from 24.14 to 29.18 to 29.69 dB over all 369.</p>
+          <figcaption><b>Optical stages.</b> Insets show absolute RGB error to the target; numbers give crop PSNR.</figcaption>
+        </div>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ world models ============ -->
+<section class="block tint" id="worlds">
+  <div class="wrap">
+    <div class="eyebrow">Generated video</div>
+    <h2 class="title">Sharper worlds from world models</h2>
+    <p class="lead">We reduce generated frames by 4× and restore them. StreamVSR recovers straighter structure than bicubic and, in many crops, more than the generator itself produced.</p>
+    <div class="card panel reveal" id="wm">
+      <div class="chiprow">
+        <span class="lbl">Scene</span>
+        <div class="chips" data-group="case">
+          <button class="chip on" data-v="H2">Museum skylight</button>
+          <button class="chip" data-v="S1">Suburban houses</button>
+          <button class="chip" data-v="L1">Jungle fortress</button>
+          <button class="chip" data-v="H1">Cathedral nave</button>
+          <button class="chip" data-v="H3">Cobblestones</button>
+          <button class="chip" data-v="L2">Torchlit columns</button>
+          <button class="chip" data-v="L1b">Jungle canopy</button>
+        </div>
+      </div>
+      <div class="chiprow">
+        <span class="lbl">Left side</span>
+        <div class="chips" data-group="left">
+          <button class="chip on" data-v="bic">Bicubic ×4</button>
+          <button class="chip" data-v="gen">Generated frame</button>
+        </div>
+        <span class="small muted" id="wm-src"></span>
+      </div>
+      <div class="cmp" data-cmp>
+        <img id="wm-left" src="static/img/wm/H2_bic.jpg" alt="left">
+        <div class="top"><img id="wm-right" src="static/img/wm/H2_ours.jpg" alt="StreamVSR"></div>
+        <span class="lab l" id="wm-llab">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
+        <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+      </div>
+    </div>
+    <div class="split" style="margin-top:22px;align-items:start">
+      <div class="card pad reveal">
+        <h3>All 50 world-model videos</h3>
+        <div class="tblwrap"><table class="tbl">
+          <thead><tr><th>Video source</th><th>LPIPS ↓ bicubic</th><th>StreamVSR</th><th>DISTS ↓ bicubic</th><th>StreamVSR</th></tr></thead>
+          <tbody>
+            <tr><td>LingBot-World 2.0</td><td class="base">0.405</td><td class="best">0.247</td><td class="base">0.150</td><td class="best">0.127</td></tr>
+            <tr><td>SANA-WM</td><td class="base">0.361</td><td class="best">0.250</td><td class="base">0.085</td><td class="best">0.084</td></tr>
+            <tr><td>HelixWorld</td><td class="base">0.405</td><td class="best">0.217</td><td class="base">0.127</td><td class="best">0.102</td></tr>
+            <tr><td>EchoWM</td><td class="base">0.366</td><td class="best">0.210</td><td class="base">0.096</td><td class="best">0.085</td></tr>
+          </tbody>
+        </table></div>
+        <p class="metric">Mean per-video scores; StreamVSR is frozen during this evaluation.</p>
+      </div>
+      <div class="reveal">
+        <ul class="bullets">
+          <li><b>Out of distribution.</b> Generated video is out of distribution for StreamVSR, yet the frozen model lowers LPIPS and DISTS for all four generators.</li>
+          <li><b>Repairs generator artifacts.</b> Wavy skylight grids, mushy window frames, and melted cobblestones come back straighter and crisper.</li>
+          <li><b>Detail is synthesized.</b> Restored texture can differ from the original frame; it is sharper structure, not a pixel-exact copy.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ gallery ============ -->
+<section class="block dark" id="gallery">
+  <div class="wrap">
+    <div class="eyebrow">Video gallery</div>
+    <h2 class="title">Eighteen worlds, three outputs each</h2>
+    <p class="lead">Rollouts from five public world-model releases. Each video plays the four outputs side by side; click any card to watch it large.</p>
+    <div class="legend4"><span><b>Top left</b> · bicubic ×4</span><span><b>Top right</b> · StreamVSR</span><span><b>Bottom left</b> · stereo (red/cyan)</span><span><b>Bottom right</b> · refocus sweep</span></div>
+    <div class="chips" data-group="family" id="gal-filter">
+      <button class="chip on" data-v="all">All</button>
+      <button class="chip" data-v="HelixWorld">HelixWorld</button>
+      <button class="chip" data-v="LingBot-World">LingBot-World</button>
+      <button class="chip" data-v="LingBot-World 2.0">LingBot-World 2.0</button>
+      <button class="chip" data-v="SANA-WM">SANA-WM</button>
+      <button class="chip" data-v="SolarWM">SolarWM</button>
+    </div>
+    <div class="gal" id="gal"></div>
+    <p class="small" style="color:#8f9ab0;margin-top:22px">Gallery clips use the released StreamVSR checkpoint with one DiT evaluation per streaming block. “Restore” clips are reduced 4× before restoration; “enhance” clips are enlarged directly. Stereo uses a virtual 6.5 cm baseline; refocus sweeps from near to far with aperture 0.65 and a fixed field of view. Source videos belong to their creators (see credits below).</p>
+  </div>
+</section>
+
+<dialog class="modal" id="modal">
+  <div class="box">
+    <video id="modal-video" controls muted loop playsinline></video>
+    <div class="cap"><span id="modal-cap"></span><button id="modal-close">Close ✕</button></div>
+  </div>
+</dialog>
+
+<!-- ============ joint training ============ -->
+<section class="block" id="joint">
+  <div class="wrap">
+    <div class="eyebrow">Joint training</div>
+    <h2 class="title">Three tasks teach each other</h2>
+    <p class="lead">At equal training time, one jointly tuned decoder beats three separately tuned ones on every task, on captured light fields and on rendered video.</p>
+    <div class="split" style="align-items:start">
+      <figure class="card pad reveal">
+        <img class="figimg" src="static/img/fig/fig5_joint_vs_single.jpg" alt="single-task vs joint" loading="lazy">
+        <figcaption><b>Single-task (top) vs. joint training (bottom).</b> Joint training removes doubled eyes, torn faces, and missing defocus.</figcaption>
+      </figure>
+      <div class="card pad reveal">
+        <h3>PSNR on Captured LF30 (dB)</h3>
+        <div class="chart-head"><span><i style="background:#b9c1cf"></i>Single-task (three models)</span><span><i style="background:#16967b"></i>StreamVSR-Joint (one model)</span></div>
+        <div class="bars" data-bars data-min="23.5" data-max="25.8">
+          <div class="barrow"><div class="name"><b>Super-resolution</b><span class="delta">+0.60</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.345">24.35</div></div><div class="track"><div class="fill ours" data-v="24.942">24.94</div></div></div></div>
+          <div class="barrow"><div class="name"><b>Stereo</b><span class="delta">+0.78</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.042">24.04</div></div><div class="track"><div class="fill ours" data-v="24.822">24.82</div></div></div></div>
+          <div class="barrow"><div class="name"><b>Refocus</b><span class="delta">+0.96</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.568">24.57</div></div><div class="track"><div class="fill ours" data-v="25.532">25.53</div></div></div></div>
+        </div>
+        <p class="metric">Bars start at 23.5 dB. On Rendered18 the joint model also wins all three tasks (28.72 / 17.17 / 30.64 vs. 28.31 / 17.04 / 29.66 dB).</p>
+      </div>
+    </div>
+    <figure class="card pad reveal" style="margin-top:22px">
+      <div class="split even">
+        <img class="figimg" src="static/img/fig/fig6_auxiliary_supervision.jpg" alt="auxiliary supervision" loading="lazy">
+        <div>
+          <h3>Which auxiliary tasks help?</h3>
+          <p class="muted" style="margin:0">On Stereo4D, SR supervision alone gives most of the stereo gain (0.492 of 0.504 dB). On Captured LF30, adding both auxiliary tasks improves refocus PSNR by 1.12 dB over refocus alone and by 0.49–0.56 dB over either two-task model.</p>
+        </div>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ efficiency ============ -->
+<section class="block tint" id="speed">
+  <div class="wrap">
+    <div class="eyebrow">Efficiency</div>
+    <h2 class="title">Serve many viewers from one reconstruction</h2>
+    <p class="lead">Seven viewing requests (different baselines and focus settings) on the same GPU, with identical inputs, weights, and output pixels. Sharing the restored block instead of restoring it for every request cuts processing time by more than half.</p>
+    <div class="grid2">
+      <div class="card pad reveal">
+        <h3>Seven requests, time in seconds</h3>
+        <div class="chart-head"><span><i style="background:#a9b0bd"></i>Restore per request</span><span><i style="background:#16967b"></i>Shared reconstruction</span></div>
+        <div class="bars" data-bars data-min="0" data-max="92">
+          <div class="barrow"><div class="name"><b>1080p · first 21 frames</b><span class="delta">2.45×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="27.35">27.35</div></div><div class="track"><div class="fill ours" data-v="11.14">11.14</div></div></div></div>
+          <div class="barrow"><div class="name"><b>1080p · next 8 frames</b><span class="delta">2.42×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="10.25">10.25</div></div><div class="track"><div class="fill ours" data-v="4.23">4.23</div></div></div></div>
+          <div class="barrow"><div class="name"><b>4K · first 21 frames</b><span class="delta">2.26×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="91.68">91.68</div></div><div class="track"><div class="fill ours" data-v="40.60">40.60</div></div></div></div>
+          <div class="barrow"><div class="name"><b>4K · next 8 frames</b><span class="delta">2.25×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="34.85">34.85</div></div><div class="track"><div class="fill ours" data-v="15.45">15.45</div></div></div></div>
+        </div>
+        <p class="metric">Codecs excluded. Output pixels are identical in both settings.</p>
+      </div>
+      <div class="card pad reveal">
+        <h3>Against a specialist cascade</h3>
+        <p class="muted" style="margin:0 0 16px">Three 720p outputs (SR, stereo, refocus) over 1,000-frame MovieLQ streams, mean of ten streams on the same GPU. The cascade shares InfVSR's output between M2SVid and Any-to-Bokeh.</p>
+        <div class="bars" data-bars data-min="0" data-max="900">
+          <div class="barrow"><div class="name"><b>InfVSR → M2SVid + Any-to-Bokeh</b><span></span></div><div class="track"><div class="fill base" data-v="866.53">866.53 s</div></div></div>
+          <div class="barrow"><div class="name"><b>StreamVSR</b><span class="delta">5.27× faster</span></div><div class="track"><div class="fill ours" data-v="164.32">164.32 s</div></div></div>
+        </div>
+        <p class="metric">The two systems produce different pixels (M2SVid computes its right view on a 512-square grid), so this compares runtime across methods only.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ bibtex ============ -->
+<section class="block" id="bibtex">
+  <div class="wrap">
+    <div class="eyebrow">Citation</div>
+    <h2 class="title">BibTeX</h2>
+    <div class="card pad">
+      <div style="display:flex;justify-content:flex-end;margin:-6px 0 10px"><button class="mini-btn" id="copy-bib">Copy</button></div>
+      <!-- TODO(bibtex): replace with the final entry. -->
+<pre class="bib" id="bib">@article{streamvsr2026,
+  title   = {StreamVSR: Unified Streaming Visual Model for Video
+             Super-Resolution, Stereo Synthesis, and Refocusing},
+  author  = {Anonymous},
+  journal = {Under review},
+  year    = {2026}
+}</pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p><b>Video credits.</b> World-model rollouts in the gallery and comparisons come from public releases:
+      <a href="https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi">HelixWorld</a> (Noiz AI and HKUST),
+      <a href="https://technology.robbyant.com/lingbot-world">LingBot-World</a> and <a href="https://technology.robbyant.com/lingbot-world-v2">LingBot-World 2.0</a> (Robbyant),
+      <a href="https://nvlabs.github.io/Sana/WM/">SANA-WM</a> (NVIDIA Research), and
+      <a href="https://junchao-cs.github.io/SolarWM-Web/">SolarWM</a> (SolarX Team). The face clip is from Pexels. All rights remain with their owners; the clips are shown for research comparison only.</p>
+    <p>Page layout inspired by <a href="https://jackailab.github.io/Projects/UnityShots/">UnityShots</a> and <a href="https://nerfies.github.io">Nerfies</a>.</p>
+  </div>
+</footer>
+
+<script>
+  // gallery data: [id, title, source, source url]
+  window.GALLERY = [["helix-084", "Cherry blossoms in a shrine courtyard", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-033", "Gothic cathedral nave", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-005", "Museum gallery and carved stone", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-011", "Elephant on the savannah", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-044", "Cobblestone alley and cat", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-068", "Ivy, brickwork and cobblestones", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["coastal-town", "Animated coastal town", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["mural", "Flying figure in a painted mural", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["ling2-jungle-fortress", "Jungle canopy and distant fortress", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-torch-courtyard", "Torchlit stone courtyard", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-cloth", "Robotic arms and cloth on a wooden bench", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-bakery", "Robotic arm in a rustic bakery", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-shanghai-riverfront", "Shanghai waterfront and dogs", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["sana-alpine-fence", "Wildflowers and split-rail alpine fences", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-rain-trail", "Dense rain-soaked tropical trail", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-desert-ruins", "Sunlit canyon and ancient ruins", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["snow", "Snow village", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"], ["waterfall", "Tropical waterfall basin", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"]];
+  window.HERO = ["helix-084", "helix-033", "helix-005", "helix-011", "helix-044", "helix-068", "coastal-town", "mural", "ling2-jungle-fortress", "ling2-torch-courtyard", "ling2-robot-cloth", "ling2-robot-bakery", "ling2-shanghai-riverfront", "sana-alpine-fence", "sana-rain-trail", "sana-desert-ruins", "snow", "waterfall", "helix-001", "library", "ling2-alpine-game", "sana-dollhouse", "sana-snow-ridge", "viaduct"];
+</script>
+<script src="static/js/main.js?v=9"></script>
+</body>
+</html>
