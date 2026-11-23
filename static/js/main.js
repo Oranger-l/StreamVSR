@@ -88,7 +88,7 @@
   /* ---------- faces: StreamVSR vs. a chosen baseline ---------- */
   const faces = $('#faces');
   if (faces) {
-    const NAMES = { sol_refiner: 'SoL-Refiner', flashvsr_plus_base: 'FlashVSR Base', dove: 'DOVE', seedvr2_3b: 'SeedVR2-3B', open_h3_regen: 'Open-H3-Regen', lr: 'Input (×4 nearest)', hr: 'HR reference' };
+    const NAMES = { sol_refiner: 'SoL-Refiner', flashvsr_plus_base: 'FlashVSR Base', dove: 'DOVE', seedvr2_3b: 'SeedVR2-3B', open_h3_regen: 'Open-H3-Regen', lr: 'Input (×4 nearest)' };
     const LPIPS = {
       14: { flashvsr_plus_base: .194, dove: .194, seedvr2_3b: .189, sol_refiner: .317, open_h3_regen: .339, ours: .123 },
       20: { flashvsr_plus_base: .142, dove: .123, seedvr2_3b: .152, sol_refiner: .286, open_h3_regen: .357, ours: .099 },
@@ -100,14 +100,15 @@
       $('#faces-left').src = `static/img/faces/f${frame}_${method}.jpg`;
       $('#faces-right').src = `static/img/faces/f${frame}_streamvsr.jpg`;
       $('#faces-ctx').src = `static/img/faces/f${frame}_context.jpg`;
+      $('#faces-gt').src = `static/img/faces/f${frame}_hr.jpg`;
       $('#faces-llab').textContent = NAMES[method];
       $('#faces-left').classList.toggle('pixel', method === 'lr');
       const [x, y, w, h] = BOX[frame], bx = $('#faces-box');
       Object.assign(bx.style, { left: x + '%', top: y + '%', width: w + '%', height: h + '%' });
       const L = LPIPS[frame], m = $('#faces-metric');
       m.innerHTML = (method in L)
-        ? `Crop LPIPS: ${NAMES[method]} <b>${L[method].toFixed(3)}</b> · StreamVSR <b class="good">${L.ours.toFixed(3)}</b>`
-        : `Crop LPIPS of StreamVSR on this frame: <b class="good">${L.ours.toFixed(3)}</b>`;
+        ? `Crop LPIPS against the ground truth: ${NAMES[method]} <b>${L[method].toFixed(3)}</b> · StreamVSR <b class="good">${L.ours.toFixed(3)}</b>`
+        : `Crop LPIPS of StreamVSR against the ground truth: <b class="good">${L.ours.toFixed(3)}</b>`;
     };
     chipGroup(faces, 'method', (v) => { method = v; render(); });
     chipGroup(faces, 'frame', (v) => { frame = v; render(); });
@@ -145,6 +146,169 @@
     });
     v.addEventListener('loadedmetadata', seek);
   });
+
+  /* ---------- zoom windows: magnify boxed regions of a video ---------- */
+  // data-zoom="x,y,w,h" is in pixels of the first video loaded; boxes are kept as fractions so a
+  // source swap to a different resolution (aperture card) keeps the same region.
+  $$('[data-zoomwrap]').forEach((wrap) => {
+    const v = $('video', wrap), vid = $('.vid', wrap);
+    const zs = $$('canvas[data-zoom]', wrap).map((c) => {
+      const box = document.createElement('div');
+      box.className = 'zbox ' + (c.parentElement.classList.contains('near') ? 'near' : 'far');
+      vid.appendChild(box);
+      return { c, ctx: c.getContext('2d'), px: c.dataset.zoom.split(',').map(Number), f: null, box };
+    });
+    const init = () => {
+      const W = v.videoWidth, H = v.videoHeight; if (!W) return false;
+      zs.forEach((z) => { if (!z.f) z.f = [z.px[0] / W, z.px[1] / H, z.px[2] / W, z.px[3] / H]; });
+      return true;
+    };
+    const place = () => {
+      if (!init()) return;
+      zs.forEach(({ f, box }) => Object.assign(box.style, { left: f[0] * 100 + '%', top: f[1] * 100 + '%', width: f[2] * 100 + '%', height: f[3] * 100 + '%' }));
+    };
+    const draw = () => {
+      if (v.readyState < 2 || !init()) return;
+      const W = v.videoWidth, H = v.videoHeight;
+      zs.forEach(({ c, ctx, f }) => {
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(v, f[0] * W, f[1] * H, f[2] * W, f[3] * H, 0, 0, c.width, c.height);
+      });
+    };
+    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+      const loop = () => { draw(); v.requestVideoFrameCallback(loop); };
+      v.requestVideoFrameCallback(loop);
+    } else {
+      const tick = () => { draw(); if (!v.paused) requestAnimationFrame(tick); };
+      v.addEventListener('play', tick);
+    }
+    ['loadeddata', 'seeked', 'timeupdate'].forEach((e) => v.addEventListener(e, draw));
+    v.addEventListener('loadedmetadata', place);
+    if (v.readyState >= 1) place();
+    if (v.readyState >= 2) draw(); // the video may have loaded before this script ran
+    // drag the nearest box to move its zoom window
+    let drag = null;
+    const at = (e) => { const b = vid.getBoundingClientRect(); return [(e.clientX - b.left) / b.width, (e.clientY - b.top) / b.height]; };
+    const move = (e) => {
+      if (!drag) return;
+      const [x, y] = at(e), f = drag.f;
+      f[0] = Math.max(0, Math.min(1 - f[2], x - f[2] / 2)); f[1] = Math.max(0, Math.min(1 - f[3], y - f[3] / 2));
+      place(); draw();
+    };
+    vid.addEventListener('pointerdown', (e) => {
+      if (!init()) return;
+      const [x, y] = at(e);
+      drag = zs.reduce((b, z) => {
+        const d = Math.hypot(x - z.f[0] - z.f[2] / 2, y - z.f[1] - z.f[3] / 2);
+        return !b || d < b.d ? { z, d } : b;
+      }, null).z;
+      vid.setPointerCapture(e.pointerId); move(e);
+    });
+    vid.addEventListener('pointermove', move);
+    ['pointerup', 'pointercancel'].forEach((n) => vid.addEventListener(n, () => { drag = null; }));
+  });
+
+  /* ---------- 3D viewer: one video per scene holding [left | right | depth] side by side ---------- */
+  const s3 = $('#s3');
+  if (s3 && window.S3D) {
+    const canvas = $('#s3c'), stage = $('.s3stage', s3), video = document.createElement('video');
+    Object.assign(video, { muted: true, loop: true, playsInline: true, preload: 'auto' });
+    video.setAttribute('playsinline', ''); video.setAttribute('muted', '');
+    const HINT = {
+      wiggle: 'No glasses needed: the view switches between the left and right eye several times a second. Freeze the motion to study one frame.',
+      anaglyph: 'Put on red/cyan glasses (red over the left eye).',
+      cross: 'Cross-eye viewing: the right-eye image is on the left. Cross your eyes until the two pictures fuse into a third one in the middle.',
+      sbs: 'Parallel side by side: left eye left, right eye right. Use it for parallel free viewing, or full screen on a VR headset or 3D display.',
+      depth: 'The depth StreamVSR renders from (bright = near), normalized once per clip so it stays on one scale across streaming blocks.',
+    };
+    const MODES = { wiggle: 0, anaglyph: 1, cross: 2, sbs: 3, depth: 4 };
+    let mode = 'wiggle', scene = null, lastT = -1, lastEye = -1, raf = 0, visible = false, frozen = false;
+    const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: false });
+    if (!gl) { stage.classList.add('nogl'); $('#s3hint').textContent = 'This browser has no WebGL; the 3D viewer needs it.'; }
+    const prog = gl && (() => {
+      const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+      const p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x * .5 + .5, .5 - p.y * .5); gl_Position = vec4(p, 0., 1.); }'));
+      gl.attachShader(p, sh(gl.FRAGMENT_SHADER, `precision mediump float; varying vec2 uv; uniform sampler2D t; uniform int mode; uniform float conv, m, eye, px;
+        vec3 S(float k, vec2 q){ q.x = clamp(q.x, px, 1. - px); return texture2D(t, vec2((q.x + k) / 3., q.y)).rgb; }
+        vec3 L(vec2 q){ return S(0., q); }
+        vec3 R(vec2 q){ return S(1., vec2(q.x - conv, q.y)); }
+        vec3 turbo(float x){ x = clamp(x, 0., 1.); vec4 v = vec4(1., x, x * x, x * x * x); vec2 w = v.zw * v.z;
+          return vec3(dot(v, vec4(.13572138, 4.6153926, -42.66032258, 132.13108234)) + dot(w, vec2(-152.94239396, 59.28637943)),
+                      dot(v, vec4(.09140261, 2.19418839, 4.84296658, -14.18503333)) + dot(w, vec2(4.27729857, 2.82956604)),
+                      dot(v, vec4(.1066733, 12.64194608, -60.58204836, 110.36276771)) + dot(w, vec2(-89.90310912, 27.34824973))); }
+        void main(){ vec3 c;
+          if (mode == 2 || mode == 3) { bool lh = uv.x < .5; vec2 r = vec2(m + fract(uv.x * 2.) * (1. - 2. * m), uv.y);
+            if (mode == 2) c = lh ? R(r) : L(r); else c = lh ? L(r) : R(r);
+          } else { vec2 r = vec2(m + uv.x * (1. - 2. * m), uv.y);
+            if (mode == 0) c = eye < .5 ? L(r) : R(r);
+            else if (mode == 1) { vec3 a = L(r), b = R(r); c = vec3(a.r, b.g, b.b); }
+            else c = turbo(S(2., r).r);
+          }
+          gl_FragColor = vec4(c, 1.); }`));
+      gl.linkProgram(p); gl.useProgram(p);
+      const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+      const loc = gl.getAttribLocation(p, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+      const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
+      [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach((k) => gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE));
+      [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach((k) => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
+      const u = {}; ['mode', 'conv', 'm', 'eye', 'px'].forEach((k) => (u[k] = gl.getUniformLocation(p, k)));
+      return u;
+    })();
+    const size = () => {
+      if (!scene) return;
+      const [pw, ph] = scene.panel, two = mode === 'cross' || mode === 'sbs', w = Math.round(pw * (1 - 2 * scene.m));
+      canvas.width = two ? 2 * w : w; canvas.height = ph;
+      stage.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
+      if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
+      lastEye = -1;
+    };
+    const draw = (eye) => {
+      gl.uniform1i(prog.mode, MODES[mode]); gl.uniform1f(prog.conv, scene.conv); gl.uniform1f(prog.m, scene.m);
+      gl.uniform1f(prog.eye, eye); gl.uniform1f(prog.px, 0.6 / scene.panel[0]);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    };
+    const loop = (now) => {
+      raf = 0; if (!visible || !gl || !scene) return;
+      let dirty = false;
+      if (video.readyState >= 2 && video.currentTime !== lastT) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video); lastT = video.currentTime; dirty = true;
+        stage.classList.add('ready');
+      }
+      const eye = Math.floor(now / 140) % 2;
+      if (eye !== lastEye) { lastEye = eye; dirty = true; }
+      if (dirty && lastT >= 0) draw(eye);
+      raf = requestAnimationFrame(loop);
+    };
+    const start = () => { if (!raf && visible) raf = requestAnimationFrame(loop); };
+    const setScene = (id) => {
+      scene = window.S3D.find((s) => s.id === id);
+      lastT = -1; stage.classList.remove('ready');
+      stage.style.backgroundImage = `url(static/video/stereo3d/${id}.jpg)`;
+      $('#s3lab').textContent = `${scene.title} · ${scene.source}`;
+      video.src = `static/video/stereo3d/${id}.mp4`;
+      if (visible && !frozen) video.play().catch(() => {});
+      size();
+    };
+    const chips = $('[data-group="s3clip"]', s3);
+    window.S3D.forEach((s, i) => {
+      const b = document.createElement('button'); b.className = 'chip' + (i ? '' : ' on'); b.dataset.v = s.id; b.textContent = s.title; chips.appendChild(b);
+    });
+    chipGroup(s3, 's3clip', setScene);
+    chipGroup(s3, 's3mode', (v) => { mode = v; $('#s3hint').textContent = HINT[v]; size(); });
+    $('#s3hint').textContent = HINT[mode];
+    const fz = $('#s3pause');
+    fz.addEventListener('click', () => {
+      frozen = !frozen; fz.textContent = frozen ? '▶ Resume motion' : '❚❚ Freeze motion';
+      if (frozen) video.pause(); else video.play().catch(() => {});
+    });
+    inView(s3, (vis) => {
+      visible = vis;
+      if (vis) { if (!scene) setScene(window.S3D[0].id); if (!frozen) video.play().catch(() => {}); start(); }
+      else video.pause();
+    }, { rootMargin: '150px' });
+  }
 
   /* ---------- aperture toggle ---------- */
   const ap = $('#aperture');

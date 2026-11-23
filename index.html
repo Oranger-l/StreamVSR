@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/css/style.css?v=9">
+<link rel="stylesheet" href="static/css/style.css?v=11">
 </head>
 <body>
 
@@ -28,6 +28,7 @@
     <a href="#method">Method</a>
     <a href="#sr">Super-Resolution</a>
     <a href="#optics">Stereo &amp; Refocus</a>
+    <a href="#stereo3d">3D</a>
     <a href="#worlds">World Models</a>
     <a href="#gallery">Gallery</a>
     <a href="#joint">Joint Training</a>
@@ -163,7 +164,7 @@
     </div>
 
     <h3 style="margin:46px 0 6px">Against super-resolution specialists</h3>
-    <p class="muted" style="margin:0 0 16px">A degraded Pexels clip (the clip of the main comparison figure). Pick a baseline and a frame; the right side is always StreamVSR. Numbers are crop LPIPS against the high-resolution frame (lower is better).</p>
+    <p class="muted" style="margin:0 0 16px">A degraded Pexels clip (the clip of the main comparison figure). Pick a baseline and a frame: the slider compares it with StreamVSR, and the panel on the right is the ground-truth frame, so you can check which output keeps each person's identity. Numbers are crop LPIPS against the ground truth (lower is better).</p>
     <div class="card panel reveal" id="faces">
       <div class="chiprow">
         <span class="lbl">Compare with</span>
@@ -174,7 +175,6 @@
           <button class="chip" data-v="seedvr2_3b">SeedVR2-3B</button>
           <button class="chip" data-v="open_h3_regen">Open-H3-Regen</button>
           <button class="chip" data-v="lr">Input (×4 nearest)</button>
-          <button class="chip" data-v="hr">HR reference</button>
         </div>
       </div>
       <div class="chiprow">
@@ -185,17 +185,18 @@
           <button class="chip" data-v="30">30</button>
         </div>
       </div>
-      <div class="ctxrow">
-        <div>
-          <div class="ctx"><img id="faces-ctx" src="static/img/faces/f14_context.jpg" alt="input frame"><div class="box" id="faces-box"></div></div>
-          <p class="metric" id="faces-metric"></p>
-        </div>
+      <div class="facecmp">
         <div class="cmp" data-cmp id="faces-cmp">
           <img id="faces-left" src="static/img/faces/f14_sol_refiner.jpg" alt="baseline">
           <div class="top"><img id="faces-right" src="static/img/faces/f14_streamvsr.jpg" alt="StreamVSR"></div>
           <span class="lab l" id="faces-llab">SoL-Refiner</span><span class="lab r">StreamVSR</span>
           <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
         </div>
+        <div class="gtpanel"><img id="faces-gt" src="static/img/faces/f14_hr.jpg" alt="ground truth"><span class="lab gt">Ground truth</span></div>
+      </div>
+      <div class="ctxline">
+        <div class="ctx"><img id="faces-ctx" src="static/img/faces/f14_context.jpg" alt="input frame"><div class="box" id="faces-box"></div></div>
+        <p class="metric" id="faces-metric"></p>
       </div>
     </div>
 
@@ -213,17 +214,29 @@
     <h2 class="title">Move the focal plane, open a second eye</h2>
     <p class="lead">Refocusing keeps the viewpoint and changes blur with distance from the focal plane; stereo places the restored texture in the other eye according to depth. Both are rendered from the same restored stream.</p>
 
-    <div class="grid2">
-      <div class="card scrub reveal" data-scrub>
+<div class="stack">
+    <div class="card scrub reveal" data-scrub>
+      <div class="zoomgrid" data-zoomwrap>
         <div class="vid"><video src="static/video/feature/robot_cloth_sweep.mp4" muted playsinline preload="auto"></video><span class="lab">Refocus · LingBot-World 2.0</span></div>
-        <div class="range"><span>near</span><input type="range" min="0" max="1000" value="0" aria-label="focal plane"><span>far</span></div>
-        <div class="row2"><span class="small muted">Drag to move the focal plane.</span><button class="mini-btn" data-play>▶ Sweep</button></div>
+        <div class="zooms">
+          <div class="zoom near"><canvas data-zoom="170,330,360,203" width="640" height="360"></canvas><span class="zlab">Near · zoom</span></div>
+          <div class="zoom far"><canvas data-zoom="20,100,360,203" width="640" height="360"></canvas><span class="zlab">Far · zoom</span></div>
+        </div>
       </div>
-      <div class="card scrub reveal" data-scrub>
+      <div class="range"><span>near</span><input type="range" min="0" max="1000" value="0" aria-label="focal plane"><span>far</span></div>
+      <div class="row2"><span class="small muted">Drag the slider to move the focal plane. The zoom windows magnify the boxed regions; drag on the video to move a box.</span><button class="mini-btn" data-play>▶ Sweep</button></div>
+    </div>
+    <div class="card scrub reveal" data-scrub>
+      <div class="zoomgrid" data-zoomwrap>
         <div class="vid"><video src="static/video/feature/torch_courtyard_sweep.mp4" muted playsinline preload="auto"></video><span class="lab">Refocus · LingBot-World 2.0</span></div>
-        <div class="range"><span>near</span><input type="range" min="0" max="1000" value="0" aria-label="focal plane"><span>far</span></div>
-        <div class="row2"><span class="small muted">Drag to move the focal plane.</span><button class="mini-btn" data-play>▶ Sweep</button></div>
+        <div class="zooms">
+          <div class="zoom near"><canvas data-zoom="480,540,360,203" width="640" height="360"></canvas><span class="zlab">Near · zoom</span></div>
+          <div class="zoom far"><canvas data-zoom="620,190,360,203" width="640" height="360"></canvas><span class="zlab">Far · zoom</span></div>
+        </div>
       </div>
+      <div class="range"><span>near</span><input type="range" min="0" max="1000" value="0" aria-label="focal plane"><span>far</span></div>
+      <div class="row2"><span class="small muted">Drag the slider to move the focal plane. The zoom windows magnify the boxed regions; drag on the video to move a box.</span><button class="mini-btn" data-play>▶ Sweep</button></div>
+    </div>
     </div>
 
     <div class="card panel reveal" style="margin-top:22px" id="aperture">
@@ -236,15 +249,13 @@
         </div>
         <span class="small muted">Focus on the elephant; a larger aperture blurs the savannah more.</span>
       </div>
-      <div class="vid"><video id="ap-video" src="static/video/feature/elephant_refocus_a065.mp4" muted loop playsinline autoplay preload="metadata"></video></div>
-    </div>
-
-    <h3 style="margin:46px 0 6px">Stereo from a single view</h3>
-    <p class="muted" style="margin:0 0 16px">Red/cyan anaglyphs from the same rollouts, shown at native panel resolution. <span class="glasses"><i style="background:#e5383b"></i><i style="background:#22c3d6"></i>Use red/cyan glasses for depth.</span></p>
-    <div class="grid3">
-      <div class="reveal"><div class="quad q-st" style="aspect-ratio:1080/788"><video data-lazy="static/video/gallery/helix-005.mp4" muted loop playsinline></video></div><p class="metric">Museum gallery · HelixWorld</p></div>
-      <div class="reveal"><div class="quad q-st" style="aspect-ratio:1080/788"><video data-lazy="static/video/gallery/helix-033.mp4" muted loop playsinline></video></div><p class="metric">Gothic cathedral nave · HelixWorld</p></div>
-      <div class="reveal"><div class="quad q-st" style="aspect-ratio:1080/788"><video data-lazy="static/video/gallery/helix-044.mp4" muted loop playsinline></video></div><p class="metric">Cobblestone alley · HelixWorld</p></div>
+      <div class="zoomgrid" data-zoomwrap>
+        <div class="vid"><video id="ap-video" src="static/video/feature/elephant_refocus_a065.mp4" muted loop playsinline autoplay preload="metadata"></video></div>
+        <div class="zooms">
+          <div class="zoom near"><canvas data-zoom="840,600,400,225" width="640" height="360"></canvas><span class="zlab">In focus · zoom</span></div>
+          <div class="zoom far"><canvas data-zoom="0,500,480,270" width="640" height="360"></canvas><span class="zlab">Background · zoom</span></div>
+        </div>
+      </div>
     </div>
 
     <figure class="card pad reveal" style="margin-top:28px">
@@ -257,6 +268,35 @@
         </div>
       </div>
     </figure>
+  </div>
+</section>
+
+<!-- ============ stereo 3D ============ -->
+<section class="block dark" id="stereo3d">
+  <div class="wrap">
+    <div class="eyebrow">Stereo 3D</div>
+    <h2 class="title">One view in, two eyes out</h2>
+    <p class="lead">For each generated monocular stream, StreamVSR restores the left view and renders the right one from depth kept on a common scale across blocks. <b>Wiggle</b> alternates the two eyes, so depth reads without glasses; red/cyan, cross-eye and side-by-side are for glasses, free viewing and headsets, and <b>Depth</b> shows the geometry the views are rendered from.</p>
+    <div class="card s3 reveal" id="s3">
+      <div class="chiprow"><span class="lbl">Scene</span><div class="chips" data-group="s3clip"></div></div>
+      <div class="chiprow">
+        <span class="lbl">View</span>
+        <div class="chips" data-group="s3mode">
+          <button class="chip on" data-v="wiggle">Wiggle 3D</button>
+          <button class="chip" data-v="anaglyph">Red / cyan</button>
+          <button class="chip" data-v="cross">Cross-eye</button>
+          <button class="chip" data-v="sbs">Side by side</button>
+          <button class="chip" data-v="depth">Depth</button>
+        </div>
+      </div>
+      <div class="s3stage"><canvas id="s3c"></canvas><span class="lab" id="s3lab"></span><div class="s3load">Loading…</div></div>
+      <div class="row2"><span class="small" id="s3hint"></span><button class="mini-btn" id="s3pause">❚❚ Freeze motion</button></div>
+    </div>
+    <div class="s3notes">
+      <div><b>One pass, both eyes</b>The left view is the super-resolved output; the right view is rendered from the same restored block, so texture matches in both eyes.</div>
+      <div><b>Input</b>Public world-model demos. The generator's frames are area-downsampled 4× (HelixWorld 2×) before StreamVSR; outputs are 1480–1536 px wide, shown here at 1024 px per eye.</div>
+      <div><b>Display</b>Each scene uses the widest stereo baseline at which the right view stays clean around near objects; the screen plane sits at a mid-scene disparity. Clips loop forward and back.</div>
+    </div>
   </div>
 </section>
 
@@ -445,7 +485,9 @@
   // gallery data: [id, title, source, source url]
   window.GALLERY = [["helix-084", "Cherry blossoms in a shrine courtyard", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-033", "Gothic cathedral nave", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-005", "Museum gallery and carved stone", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-011", "Elephant on the savannah", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-044", "Cobblestone alley and cat", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-068", "Ivy, brickwork and cobblestones", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["coastal-town", "Animated coastal town", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["mural", "Flying figure in a painted mural", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["ling2-jungle-fortress", "Jungle canopy and distant fortress", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-torch-courtyard", "Torchlit stone courtyard", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-cloth", "Robotic arms and cloth on a wooden bench", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-bakery", "Robotic arm in a rustic bakery", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-shanghai-riverfront", "Shanghai waterfront and dogs", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["sana-alpine-fence", "Wildflowers and split-rail alpine fences", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-rain-trail", "Dense rain-soaked tropical trail", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-desert-ruins", "Sunlit canyon and ancient ruins", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["snow", "Snow village", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"], ["waterfall", "Tropical waterfall basin", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"]];
   window.HERO = ["helix-084", "helix-033", "helix-005", "helix-011", "helix-044", "helix-068", "coastal-town", "mural", "ling2-jungle-fortress", "ling2-torch-courtyard", "ling2-robot-cloth", "ling2-robot-bakery", "ling2-shanghai-riverfront", "sana-alpine-fence", "sana-rain-trail", "sana-desert-ruins", "snow", "waterfall", "helix-001", "library", "ling2-alpine-game", "sana-dollhouse", "sana-snow-ridge", "viaduct"];
+  // 3D scenes: filled from static/video/stereo3d/meta.json (S3D-BEGIN/END is rewritten by tools)
+  /*S3D-BEGIN*/window.S3D = [{"id":"helix-001","title":"Dog on a city street","source":"HelixWorld","conv":0.013,"m":0.021,"panel":[1024,682],"baseline":64.0},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","conv":0.0143,"m":0.0223,"panel":[1024,590],"baseline":16.0},{"id":"helix-107","title":"Sketched bookshop","source":"HelixWorld","conv":0.0143,"m":0.0223,"panel":[1024,682],"baseline":48.0},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","conv":0.0039,"m":0.0119,"panel":[1024,612],"baseline":24.0},{"id":"ling2-jungle-fortress","title":"Jungle glide","source":"LingBot-World 2.0","conv":0.0065,"m":0.0145,"panel":[1024,554],"baseline":32.0},{"id":"helix-044","title":"Cat in an alley","source":"HelixWorld","conv":0.0065,"m":0.0145,"panel":[1024,682],"baseline":64.0},{"id":"ling2-night-street","title":"Neon street","source":"LingBot-World 2.0","conv":0.0052,"m":0.0132,"panel":[1024,546],"baseline":64.0},{"id":"ling2-dinosaur","title":"Dinosaur","source":"LingBot-World 2.0","conv":0.0091,"m":0.0171,"panel":[1024,546],"baseline":64.0}];/*S3D-END*/
 </script>
-<script src="static/js/main.js?v=9"></script>
+<script src="static/js/main.js?v=11"></script>
 </body>
 </html>
