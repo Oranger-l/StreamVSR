@@ -119,13 +119,15 @@
   const wm = $('#wm');
   if (wm) {
     const SRC = { H1: 'HelixWorld', H2: 'HelixWorld', H3: 'HelixWorld', S1: 'SANA-WM', L1: 'LingBot-World 2.0', L1b: 'LingBot-World 2.0', L2: 'LingBot-World 2.0' };
-    let cs = 'H2', left = 'bic';
+    let cs = 'L1', left = 'bic';
     const render = () => {
       $('#wm-left').src = `static/img/wm/${cs}_${left}.jpg`;
       $('#wm-right').src = `static/img/wm/${cs}_ours.jpg`;
       $('#wm-llab').textContent = left === 'bic' ? 'Bicubic ×4' : 'Generated frame (reference)';
       $('#wm-src').textContent = `Source: ${SRC[cs]} · input is the 4× area-downsampled frame`;
     };
+    // never enlarge the crops more than 2x their native pixels
+    $('#wm-right').addEventListener('load', (e) => { $('.wmcmp', wm).style.maxWidth = e.target.naturalWidth * 2 + 'px'; });
     chipGroup(wm, 'case', (v) => { cs = v; render(); });
     chipGroup(wm, 'left', (v) => { left = v; render(); });
     render();
@@ -207,6 +209,78 @@
     vid.addEventListener('pointermove', move);
     ['pointerup', 'pointercancel'].forEach((n) => vid.addEventListener(n, () => { drag = null; }));
   });
+
+  /* ---------- 4K super-resolution viewer: input vs. StreamVSR, with 1:1 zoom windows ---------- */
+  const k4 = $('#k4');
+  if (k4 && window.K4 && window.K4.length) {
+    const lr = $('#k4lr'), sr = $('#k4sr'), cmp = $('#k4cmp'), boxEl = $('#k4box');
+    const zl = $('#k4zl'), zr = $('#k4zr'), cl = zl.getContext('2d'), cr = zr.getContext('2d');
+    let scene = null, zoom = 1, paused = false, visible = false, c = [0.5, 0.5]; // box centre, fraction of frame
+    const geom = () => { // box size in output pixels so that the right window shows output pixels at `zoom` x device pixels
+      const dpr = window.devicePixelRatio || 1, cw = Math.round(zr.clientWidth * dpr), ch = Math.round(zr.clientHeight * dpr);
+      if (zr.width !== cw || zr.height !== ch) { zr.width = zl.width = cw; zr.height = zl.height = ch; }
+      const [W, H] = scene.out, w = cw / zoom, h = ch / zoom;
+      c[0] = Math.min(1 - w / W / 2, Math.max(w / W / 2, c[0])); c[1] = Math.min(1 - h / H / 2, Math.max(h / H / 2, c[1]));
+      return { W, H, w, h, x: c[0] * W - w / 2, y: c[1] * H - h / 2 };
+    };
+    const place = () => {
+      if (!scene || !zr.clientWidth) return;
+      const g = geom();
+      Object.assign(boxEl.style, { left: (g.x / g.W) * 100 + '%', top: (g.y / g.H) * 100 + '%', width: (g.w / g.W) * 100 + '%', height: (g.h / g.H) * 100 + '%' });
+    };
+    const draw = () => {
+      if (!scene || sr.readyState < 2 || lr.readyState < 2) return;
+      const g = geom(), s = scene.in[0] / scene.out[0];
+      cr.imageSmoothingEnabled = zoom !== 1; cr.imageSmoothingQuality = 'high';
+      cr.drawImage(sr, g.x, g.y, g.w, g.h, 0, 0, zr.width, zr.height);
+      if (Math.abs(lr.currentTime - sr.currentTime) > 0.08) return; // keep the windows on the same frame
+      cl.imageSmoothingEnabled = true; cl.imageSmoothingQuality = 'high';
+      cl.drawImage(lr, g.x * s, g.y * s, g.w * s, g.h * s, 0, 0, zl.width, zl.height);
+    };
+    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+      const loop = () => { draw(); sr.requestVideoFrameCallback(loop); }; sr.requestVideoFrameCallback(loop);
+    } else { const tick = () => { draw(); if (!sr.paused) requestAnimationFrame(tick); }; sr.addEventListener('play', tick); }
+    ['loadeddata', 'seeked'].forEach((e) => { sr.addEventListener(e, draw); lr.addEventListener(e, draw); });
+    const sync = () => { if (Math.abs(lr.currentTime - sr.currentTime) > 0.05) lr.currentTime = sr.currentTime; };
+    sr.addEventListener('canplay', () => { $('#k4load').hidden = true; });
+    sr.addEventListener('timeupdate', sync); sr.addEventListener('seeked', sync);
+    const play = () => { if (!visible || paused) return; lr.currentTime = sr.currentTime; sr.play().catch(() => {}); lr.play().catch(() => {}); };
+    const setScene = (id) => {
+      scene = window.K4.find((s) => s.id === id); c = scene.box.slice();
+      sr.poster = `static/video/sr4k/${id}.jpg`;
+      $('#k4load').hidden = false;
+      sr.src = `static/video/sr4k/${id}_sr.mp4`; lr.src = `static/video/sr4k/${id}_lr.mp4`;
+      $('#k4llab').textContent = `Input ${scene.in[0]}×${scene.in[1]}`;
+      $('#k4rlab').textContent = `StreamVSR ${scene.out[0]}×${scene.out[1]}`;
+      $('#k4note').textContent = `${scene.title} · ${scene.source}. The generator's frames (${scene.in[0]}×${scene.in[1]}) go in as they are; StreamVSR outputs ${scene.out[0]}×${scene.out[1]}. Drag the orange box to choose the zoom region.`;
+      place(); play();
+    };
+    const chips = $('[data-group="k4clip"]', k4);
+    window.K4.forEach((s, i) => { const b = document.createElement('button'); b.className = 'chip' + (i ? '' : ' on'); b.dataset.v = s.id; b.textContent = s.title; chips.appendChild(b); });
+    chipGroup(k4, 'k4clip', setScene);
+    chipGroup(k4, 'k4zoom', (v) => { zoom = +v; $('#k4zlab').textContent = zoom === 1 ? 'StreamVSR · 1:1 pixels' : 'StreamVSR · 2× pixels'; place(); draw(); });
+    const pz = $('#k4pause');
+    pz.addEventListener('click', () => {
+      paused = !paused; pz.textContent = paused ? '▶ Play' : '❚❚ Pause';
+      if (paused) { sr.pause(); lr.pause(); lr.currentTime = sr.currentTime; } else play();
+    });
+    // dragging the box moves the zoom region (and must not move the slider)
+    let drag = null;
+    boxEl.addEventListener('pointerdown', (e) => {
+      e.stopPropagation(); e.preventDefault(); boxEl.setPointerCapture(e.pointerId);
+      const r = cmp.getBoundingClientRect(); drag = { x: e.clientX, y: e.clientY, c: c.slice(), w: r.width, h: r.height };
+    });
+    boxEl.addEventListener('pointermove', (e) => {
+      e.stopPropagation(); if (!drag) return;
+      c = [drag.c[0] + (e.clientX - drag.x) / drag.w, drag.c[1] + (e.clientY - drag.y) / drag.h]; place(); draw();
+    });
+    ['pointerup', 'pointercancel'].forEach((n) => boxEl.addEventListener(n, (e) => { e.stopPropagation(); drag = null; }));
+    window.addEventListener('resize', () => { place(); draw(); });
+    inView(k4, (vis) => {
+      visible = vis;
+      if (vis) { if (!scene) setScene(window.K4[0].id); else play(); } else { sr.pause(); lr.pause(); }
+    }, { rootMargin: '100px' });
+  }
 
   /* ---------- 3D viewer: one video per scene holding [left | right | depth] side by side ---------- */
   const s3 = $('#s3');

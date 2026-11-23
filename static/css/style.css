@@ -349,3 +349,16 @@ footer a { color: var(--ink-soft); }
 .s3notes div { font-size: 13.5px; color: #aeb7c7; line-height: 1.5; }
 .s3notes b { color: #fff; display: block; margin-bottom: 2px; }
 @media (max-width: 640px) { .s3notes { grid-template-columns: 1fr; } .s3 .row2 { flex-direction: column; align-items: flex-start; } }
+
+/* ---------- 4K viewer ---------- */
+.k4grid .zoom canvas { aspect-ratio: 16 / 10; }
+.k4grid .cmp { align-self: start; }
+.k4box { pointer-events: auto; cursor: move; z-index: 3; touch-action: none; border-width: 2px; }
+.k4row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
+.k4ctl { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.k4ctl .chip { padding: 5px 11px; }
+@media (max-width: 640px) { .k4row { flex-direction: column; align-items: flex-start; } }
+
+.wmcmp { margin: 0 auto; }
+.k4load { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; font: 600 12.5px/1 var(--sans); color: #fff; background: rgba(0, 0, 0, .6); pointer-events: none; z-index: 4; }
+.k4load[hidden] { display: none; }

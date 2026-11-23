@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/css/style.css?v=11">
+<link rel="stylesheet" href="static/css/style.css?v=13">
 </head>
 <body>
 
@@ -70,7 +70,7 @@
     <div class="split reveal">
       <figure class="card" style="padding:12px;overflow:hidden">
         <video class="figimg" src="static/video/gallery/helix-084.mp4" poster="static/img/gallery/helix-084.jpg" autoplay muted loop playsinline></video>
-        <figcaption style="margin:10px 6px 2px">A HelixWorld rollout processed by StreamVSR. <b>Top:</b> bicubic ×4 vs. streaming super-resolution. <b>Bottom:</b> red/cyan stereo and a near-to-far refocus sweep, rendered from the same restored frames.</figcaption>
+        <figcaption style="margin:10px 6px 2px">A HelixWorld rollout processed by StreamVSR. <b>Top:</b> bicubic ×4 vs. streaming super-resolution. <b>Bottom:</b> red/cyan stereo and a near-to-far refocus sweep, rendered from the same restored frames. Each panel is a reduced-size preview; the <a href="#sr">4K viewer</a> shows full-resolution output.</figcaption>
       </figure>
       <div>
         <ul class="bullets">
@@ -131,35 +131,30 @@
   <div class="wrap">
     <div class="eyebrow">Super-resolution</div>
     <h2 class="title">4× streaming super-resolution</h2>
-    <p class="lead">Drag the divider. The video is a HelixWorld rollout reduced to 512×341 and super-resolved by StreamVSR to 2048×1364 in eleven causal blocks, one DiT evaluation per block.</p>
+    <p class="lead">Each world model's own frames go straight into StreamVSR, which enlarges them 4× in causal streaming blocks with one DiT evaluation per block. A full frame shrunk to fit a web page hides most of that detail, so the two windows show the boxed region at the output's native pixels.</p>
 
-    <div class="card panel reveal">
-      <div class="cmp" data-cmp data-video>
-        <video src="static/video/feature/blossom_lr.mp4" muted loop playsinline preload="auto"></video>
-        <div class="top"><video src="static/video/feature/blossom_sr.mp4" muted loop playsinline preload="auto"></video></div>
-        <span class="lab l">Generated video (768×512, browser upscaled)</span><span class="lab r">StreamVSR (2048×1364)</span>
-        <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
-      </div>
-    </div>
-
-    <div class="grid2" style="margin-top:22px">
-      <div class="card panel reveal">
-        <div class="cmp" data-cmp>
-          <img src="static/img/sr/blossom_bicubic.jpg" alt="bicubic" loading="lazy">
-          <div class="top"><img src="static/img/sr/blossom_sr.jpg" alt="StreamVSR" loading="lazy"></div>
-          <span class="lab l">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
+    <div class="card panel reveal" id="k4">
+      <div class="chiprow"><span class="lbl">Scene</span><div class="chips" data-group="k4clip"></div></div>
+      <div class="zoomgrid k4grid">
+        <div class="cmp" data-cmp id="k4cmp">
+          <video id="k4lr" muted loop playsinline preload="auto"></video>
+          <div class="top"><video id="k4sr" muted loop playsinline preload="auto"></video></div>
+          <span class="lab l" id="k4llab">Input</span><span class="lab r" id="k4rlab">StreamVSR ×4</span>
+          <div class="zbox near k4box" id="k4box" title="Drag to move the zoom region"></div>
+          <div class="k4load" id="k4load">Loading 4K video…</div>
           <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
         </div>
-        <p class="metric">Frame 48 of the rollout above, at full 2048×1364 resolution.</p>
-      </div>
-      <div class="card panel reveal">
-        <div class="cmp" data-cmp>
-          <img src="static/img/sr/elephant_bicubic.jpg" alt="bicubic" loading="lazy">
-          <div class="top"><img src="static/img/sr/elephant_sr.jpg" alt="StreamVSR" loading="lazy"></div>
-          <span class="lab l">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
-          <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+        <div class="zooms">
+          <div class="zoom far"><canvas id="k4zl" width="640" height="400"></canvas><span class="zlab">Input · enlarged</span></div>
+          <div class="zoom near"><canvas id="k4zr" width="640" height="400"></canvas><span class="zlab" id="k4zlab">StreamVSR · 1:1 pixels</span></div>
         </div>
-        <p class="metric">HelixWorld elephant rollout, frame 48. Skin folds and grass blades come back where bicubic blurs them.</p>
+      </div>
+      <div class="row2 k4row">
+        <span class="small muted" id="k4note"></span>
+        <div class="k4ctl">
+          <div class="chips" data-group="k4zoom"><button class="chip on" data-v="1">1:1</button><button class="chip" data-v="2">2×</button></div>
+          <button class="mini-btn" id="k4pause">❚❚ Pause</button>
+        </div>
       </div>
     </div>
 
@@ -305,17 +300,15 @@
   <div class="wrap">
     <div class="eyebrow">Generated video</div>
     <h2 class="title">Sharper worlds from world models</h2>
-    <p class="lead">We reduce generated frames by 4× and restore them. StreamVSR recovers straighter structure than bicubic and, in many crops, more than the generator itself produced.</p>
+    <p class="lead">The paper's replay protocol: generated frames are reduced 4× and restored to the generator's own resolution, so these crops are at most 1480 px wide and are shown at no more than 2× their native size. StreamVSR recovers straighter structure than bicubic and, in many crops, more than the generator itself produced. For full 4K output see <a href="#sr">4× super-resolution</a>.</p>
     <div class="card panel reveal" id="wm">
       <div class="chiprow">
         <span class="lbl">Scene</span>
         <div class="chips" data-group="case">
-          <button class="chip on" data-v="H2">Museum skylight</button>
-          <button class="chip" data-v="S1">Suburban houses</button>
-          <button class="chip" data-v="L1">Jungle fortress</button>
+          <button class="chip on" data-v="L1">Jungle fortress</button>
+          <button class="chip" data-v="L2">Torchlit columns</button>
           <button class="chip" data-v="H1">Cathedral nave</button>
           <button class="chip" data-v="H3">Cobblestones</button>
-          <button class="chip" data-v="L2">Torchlit columns</button>
           <button class="chip" data-v="L1b">Jungle canopy</button>
         </div>
       </div>
@@ -327,9 +320,9 @@
         </div>
         <span class="small muted" id="wm-src"></span>
       </div>
-      <div class="cmp" data-cmp>
-        <img id="wm-left" src="static/img/wm/H2_bic.jpg" alt="left">
-        <div class="top"><img id="wm-right" src="static/img/wm/H2_ours.jpg" alt="StreamVSR"></div>
+      <div class="cmp wmcmp" data-cmp>
+        <img id="wm-left" src="static/img/wm/L1_bic.jpg" alt="left">
+        <div class="top"><img id="wm-right" src="static/img/wm/L1_ours.jpg" alt="StreamVSR"></div>
         <span class="lab l" id="wm-llab">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
         <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
       </div>
@@ -364,7 +357,7 @@
   <div class="wrap">
     <div class="eyebrow">Video gallery</div>
     <h2 class="title">Eighteen worlds, three outputs each</h2>
-    <p class="lead">Rollouts from five public world-model releases. Each video plays the four outputs side by side; click any card to watch it large.</p>
+    <p class="lead">Rollouts from five public world-model releases. Each video plays the four outputs side by side as a quick overview (each panel is shown at about 540 px wide, well below the output resolution); click any card to watch it large. Full-resolution output is in <a href="#sr">4× super-resolution</a>.</p>
     <div class="legend4"><span><b>Top left</b> · bicubic ×4</span><span><b>Top right</b> · StreamVSR</span><span><b>Bottom left</b> · stereo (red/cyan)</span><span><b>Bottom right</b> · refocus sweep</span></div>
     <div class="chips" data-group="family" id="gal-filter">
       <button class="chip on" data-v="all">All</button>
@@ -486,8 +479,9 @@
   window.GALLERY = [["helix-084", "Cherry blossoms in a shrine courtyard", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-033", "Gothic cathedral nave", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-005", "Museum gallery and carved stone", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-011", "Elephant on the savannah", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-044", "Cobblestone alley and cat", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-068", "Ivy, brickwork and cobblestones", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["coastal-town", "Animated coastal town", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["mural", "Flying figure in a painted mural", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["ling2-jungle-fortress", "Jungle canopy and distant fortress", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-torch-courtyard", "Torchlit stone courtyard", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-cloth", "Robotic arms and cloth on a wooden bench", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-bakery", "Robotic arm in a rustic bakery", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-shanghai-riverfront", "Shanghai waterfront and dogs", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["sana-alpine-fence", "Wildflowers and split-rail alpine fences", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-rain-trail", "Dense rain-soaked tropical trail", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-desert-ruins", "Sunlit canyon and ancient ruins", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["snow", "Snow village", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"], ["waterfall", "Tropical waterfall basin", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"]];
   window.HERO = ["helix-084", "helix-033", "helix-005", "helix-011", "helix-044", "helix-068", "coastal-town", "mural", "ling2-jungle-fortress", "ling2-torch-courtyard", "ling2-robot-cloth", "ling2-robot-bakery", "ling2-shanghai-riverfront", "sana-alpine-fence", "sana-rain-trail", "sana-desert-ruins", "snow", "waterfall", "helix-001", "library", "ling2-alpine-game", "sana-dollhouse", "sana-snow-ridge", "viaduct"];
   // 3D scenes: filled from static/video/stereo3d/meta.json (S3D-BEGIN/END is rewritten by tools)
+  /*K4-BEGIN*/window.K4 = [{"id":"helix-011","title":"Elephant on the savannah","source":"HelixWorld","box":[0.5,0.56],"in":[768,512],"out":[3072,2048]},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","box":[0.25,0.32],"in":[960,574],"out":[3840,2296]},{"id":"helix-084","title":"Blossom shrine","source":"HelixWorld","box":[0.5,0.5],"in":[768,512],"out":[3072,2048]},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","box":[0.5,0.5],"in":[960,554],"out":[3840,2216]},{"id":"helix-033","title":"Cathedral nave","source":"HelixWorld","box":[0.5,0.5],"in":[768,512],"out":[3072,2048]}];/*K4-END*/
   /*S3D-BEGIN*/window.S3D = [{"id":"helix-001","title":"Dog on a city street","source":"HelixWorld","conv":0.013,"m":0.021,"panel":[1024,682],"baseline":64.0},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","conv":0.0143,"m":0.0223,"panel":[1024,590],"baseline":16.0},{"id":"helix-107","title":"Sketched bookshop","source":"HelixWorld","conv":0.0143,"m":0.0223,"panel":[1024,682],"baseline":48.0},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","conv":0.0039,"m":0.0119,"panel":[1024,612],"baseline":24.0},{"id":"ling2-jungle-fortress","title":"Jungle glide","source":"LingBot-World 2.0","conv":0.0065,"m":0.0145,"panel":[1024,554],"baseline":32.0},{"id":"helix-044","title":"Cat in an alley","source":"HelixWorld","conv":0.0065,"m":0.0145,"panel":[1024,682],"baseline":64.0},{"id":"ling2-night-street","title":"Neon street","source":"LingBot-World 2.0","conv":0.0052,"m":0.0132,"panel":[1024,546],"baseline":64.0},{"id":"ling2-dinosaur","title":"Dinosaur","source":"LingBot-World 2.0","conv":0.0091,"m":0.0171,"panel":[1024,546],"baseline":64.0}];/*S3D-END*/
 </script>
-<script src="static/js/main.js?v=11"></script>
+<script src="static/js/main.js?v=14"></script>
 </body>
 </html>
