@@ -230,6 +230,8 @@
     ['loadeddata', 'seeked'].forEach((e) => { rv.addEventListener(e, () => { place(); draw(); }); lv.addEventListener(e, draw); });
     const sync = () => { if (Math.abs(lv.currentTime - rv.currentTime) > 0.05) lv.currentTime = rv.currentTime; };
     rv.addEventListener('canplay', () => { el('load').hidden = true; });
+    const loadText = el('load').textContent;
+    [rv, lv].forEach((v) => v.addEventListener('error', () => { el('load').textContent = 'This video could not be loaded'; el('load').hidden = false; }));
     rv.addEventListener('timeupdate', sync); rv.addEventListener('seeked', sync);
     lv.addEventListener('loadeddata', () => { lv.currentTime = rv.currentTime; if (!rv.paused) lv.play().catch(() => {}); });
     const play = () => { if (!visible || paused) return; lv.currentTime = rv.currentTime; rv.play().catch(() => {}); lv.play().catch(() => {}); };
@@ -241,7 +243,7 @@
     const setScene = (id) => {
       scene = cfg.scenes.find((x) => x.id === id); c = scene.box.slice();
       const f = cfg.srcs(scene, left);
-      rv.poster = f.poster; el('load').hidden = false;
+      rv.poster = f.poster; el('load').textContent = loadText; el('load').hidden = false;
       rv.src = f.right; lv.src = f.left;
       text(); place(); play();
     };
@@ -309,68 +311,55 @@
     };
     const MODES = { wiggle: 0, anaglyph: 1, cross: 2, sbs: 3, depth: 4 };
     let mode = 'wiggle', scene = null, lastT = -1, lastEye = -1, raf = 0, visible = false, frozen = false;
-    const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: false });
-    if (!gl) { stage.classList.add('nogl'); $('#s3hint').textContent = 'This browser has no WebGL; the 3D viewer needs it.'; }
-    const prog = gl && (() => {
-      const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
-      const p = gl.createProgram();
-      gl.attachShader(p, sh(gl.VERTEX_SHADER, 'attribute vec2 p; varying vec2 uv; void main(){ uv = vec2(p.x * .5 + .5, .5 - p.y * .5); gl_Position = vec4(p, 0., 1.); }'));
-      gl.attachShader(p, sh(gl.FRAGMENT_SHADER, `precision mediump float; varying vec2 uv; uniform sampler2D t; uniform int mode; uniform float conv, m, eye, px;
-        vec3 S(float k, vec2 q){ q.x = clamp(q.x, px, 1. - px); return texture2D(t, vec2((q.x + k) / 3., q.y)).rgb; }
-        vec3 L(vec2 q){ return S(0., q); }
-        vec3 R(vec2 q){ return S(1., vec2(q.x - conv, q.y)); }
-        vec3 turbo(float x){ x = clamp(x, 0., 1.); vec4 v = vec4(1., x, x * x, x * x * x); vec2 w = v.zw * v.z;
-          return vec3(dot(v, vec4(.13572138, 4.6153926, -42.66032258, 132.13108234)) + dot(w, vec2(-152.94239396, 59.28637943)),
-                      dot(v, vec4(.09140261, 2.19418839, 4.84296658, -14.18503333)) + dot(w, vec2(4.27729857, 2.82956604)),
-                      dot(v, vec4(.1066733, 12.64194608, -60.58204836, 110.36276771)) + dot(w, vec2(-89.90310912, 27.34824973))); }
-        void main(){ vec3 c;
-          if (mode == 2 || mode == 3) { bool lh = uv.x < .5; vec2 r = vec2(m + fract(uv.x * 2.) * (1. - 2. * m), uv.y);
-            if (mode == 2) c = lh ? R(r) : L(r); else c = lh ? L(r) : R(r);
-          } else { vec2 r = vec2(m + uv.x * (1. - 2. * m), uv.y);
-            if (mode == 0) c = eye < .5 ? L(r) : R(r);
-            else if (mode == 1) { vec3 a = L(r), b = R(r); c = vec3(a.r, b.g, b.b); }
-            else c = turbo(S(2., r).r);
-          }
-          gl_FragColor = vec4(c, 1.); }`));
-      gl.linkProgram(p); gl.useProgram(p);
-      const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-      const loc = gl.getAttribLocation(p, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-      const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
-      [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach((k) => gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE));
-      [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach((k) => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
-      const u = {}; ['mode', 'conv', 'm', 'eye', 'px'].forEach((k) => (u[k] = gl.getUniformLocation(p, k)));
-      return u;
-    })();
+    // 2D canvas rather than WebGL: browsers refuse to upload file:// videos to WebGL, so a downloaded copy of the page would never draw
+    const ctx = canvas.getContext('2d', { alpha: false }), off = document.createElement('canvas'), octx = off.getContext('2d', { alpha: false });
+    { // the turbo colour map for the depth view, as an SVG filter on the canvas (it needs no pixel access)
+      const turbo = [[.13572138, 4.6153926, -42.66032258, 132.13108234, -152.94239396, 59.28637943],
+        [.09140261, 2.19418839, 4.84296658, -14.18503333, 4.27729857, 2.82956604],
+        [.1066733, 12.64194608, -60.58204836, 110.36276771, -89.90310912, 27.34824973]];
+      const table = (c) => Array.from({ length: 65 }, (_, i) => Math.min(1, Math.max(0, c.reduce((y, k, n) => y + k * (i / 64) ** n, 0))).toFixed(4)).join(' ');
+      document.body.insertAdjacentHTML('beforeend', `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="s3turbo" color-interpolation-filters="sRGB"><feComponentTransfer>${
+        ['R', 'G', 'B'].map((n, i) => `<feFunc${n} type="table" tableValues="${table(turbo[i])}"/>`).join('')}</feComponentTransfer></filter></svg>`);
+    }
     const size = () => {
       if (!scene) return;
       const [pw, ph] = scene.panel, two = mode === 'cross' || mode === 'sbs', w = Math.round(pw * (1 - 2 * scene.m));
-      canvas.width = two ? 2 * w : w; canvas.height = ph;
+      canvas.width = two ? 2 * w : w; canvas.height = ph; off.width = canvas.width; off.height = ph;
       stage.style.aspectRatio = `${canvas.width} / ${canvas.height}`;
-      if (gl) gl.viewport(0, 0, canvas.width, canvas.height);
+      canvas.style.filter = mode === 'depth' ? 'url(#s3turbo)' : '';
       lastEye = -1;
     };
+    /* draw panel k of the strip (0 left eye, 1 right eye, 2 depth); the right eye is shifted so that the screen plane sits at `conv` */
+    const view = (g, k, dx, dw) => {
+      const pw = video.videoWidth / 3, x = (k + scene.m - (k === 1 ? scene.conv : 0)) * pw;
+      g.drawImage(video, x, 0, pw * (1 - 2 * scene.m), video.videoHeight, dx, 0, dw, canvas.height);
+    };
+    const tint = (g, color) => { g.globalCompositeOperation = 'multiply'; g.fillStyle = color; g.fillRect(0, 0, canvas.width, canvas.height); g.globalCompositeOperation = 'source-over'; };
     const draw = (eye) => {
-      gl.uniform1i(prog.mode, MODES[mode]); gl.uniform1f(prog.conv, scene.conv); gl.uniform1f(prog.m, scene.m);
-      gl.uniform1f(prog.eye, eye); gl.uniform1f(prog.px, 0.6 / scene.panel[0]);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      const W = canvas.width;
+      [ctx, octx].forEach((g) => { g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; });
+      if (mode === 'wiggle') view(ctx, eye, 0, W);
+      else if (mode === 'cross') { view(ctx, 1, 0, W / 2); view(ctx, 0, W / 2, W / 2); }
+      else if (mode === 'sbs') { view(ctx, 0, 0, W / 2); view(ctx, 1, W / 2, W / 2); }
+      else if (mode === 'depth') view(ctx, 2, 0, W);
+      else { // red from the left eye, green and blue from the right eye
+        view(ctx, 0, 0, W); tint(ctx, '#f00'); view(octx, 1, 0, W); tint(octx, '#0ff');
+        ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(off, 0, 0); ctx.globalCompositeOperation = 'source-over';
+      }
     };
     const loop = (now) => {
-      raf = 0; if (!visible || !gl || !scene) return;
-      let dirty = false;
-      if (video.readyState >= 2 && video.currentTime !== lastT) {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video); lastT = video.currentTime; dirty = true;
-        stage.classList.add('ready');
-      }
-      const eye = Math.floor(now / 140) % 2;
-      if (eye !== lastEye) { lastEye = eye; dirty = true; }
-      if (dirty && lastT >= 0) draw(eye);
+      raf = 0; if (!visible || !scene) return;
       raf = requestAnimationFrame(loop);
+      const eye = Math.floor(now / 140) % 2;
+      if (video.readyState < 2 || !video.videoWidth || (video.currentTime === lastT && eye === lastEye)) return;
+      lastT = video.currentTime; lastEye = eye;
+      draw(eye); stage.classList.add('ready');
     };
+    video.addEventListener('error', () => { $('.s3load', s3).textContent = 'This video could not be loaded'; });
     const start = () => { if (!raf && visible) raf = requestAnimationFrame(loop); };
     const setScene = (id) => {
       scene = window.S3D.find((s) => s.id === id);
-      lastT = -1; stage.classList.remove('ready');
+      lastT = -1; stage.classList.remove('ready'); $('.s3load', s3).textContent = 'Loading…';
       stage.style.backgroundImage = `url(static/video/stereo3d/${id}.jpg?v=2)`;
       $('#s3lab').textContent = `${scene.title} · ${scene.source}`;
       video.src = `static/video/stereo3d/${id}.mp4?v=2`;
