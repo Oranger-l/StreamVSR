@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/css/style.css?v=13">
+<link rel="stylesheet" href="static/css/style.css?v=14">
 </head>
 <body>
 
@@ -393,10 +393,10 @@
       <div class="card pad reveal">
         <h3>PSNR on Captured LF30 (dB)</h3>
         <div class="chart-head"><span><i style="background:#b9c1cf"></i>Single-task (three models)</span><span><i style="background:#16967b"></i>StreamVSR-Joint (one model)</span></div>
-        <div class="bars" data-bars data-min="23.5" data-max="25.8">
-          <div class="barrow"><div class="name"><b>Super-resolution</b><span class="delta">+0.60</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.345">24.35</div></div><div class="track"><div class="fill ours" data-v="24.942">24.94</div></div></div></div>
-          <div class="barrow"><div class="name"><b>Stereo</b><span class="delta">+0.78</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.042">24.04</div></div><div class="track"><div class="fill ours" data-v="24.822">24.82</div></div></div></div>
-          <div class="barrow"><div class="name"><b>Refocus</b><span class="delta">+0.96</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.568">24.57</div></div><div class="track"><div class="fill ours" data-v="25.532">25.53</div></div></div></div>
+        <div class="bars" data-bars="grow" data-min="23.5" data-max="25.8">
+          <div class="barrow" data-heat><div class="name"><b>Super-resolution</b><span class="delta">+0.60</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.345">24.35</div></div><div class="track"><div class="fill ours" data-v="24.942">24.94</div></div></div></div>
+          <div class="barrow" data-heat><div class="name"><b>Stereo</b><span class="delta">+0.78</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.042">24.04</div></div><div class="track"><div class="fill ours" data-v="24.822">24.82</div></div></div></div>
+          <div class="barrow" data-heat><div class="name"><b>Refocus</b><span class="delta">+0.96</span></div><div class="pair"><div class="track"><div class="fill single" data-v="24.568">24.57</div></div><div class="track"><div class="fill ours" data-v="25.532">25.53</div></div></div></div>
         </div>
         <p class="metric">Bars start at 23.5 dB. On Rendered18 the joint model also wins all three tasks (28.72 / 17.17 / 30.64 vs. 28.31 / 17.04 / 29.66 dB).</p>
       </div>
@@ -419,26 +419,34 @@
     <div class="eyebrow">Efficiency</div>
     <h2 class="title">Serve many viewers from one reconstruction</h2>
     <p class="lead">Seven viewing requests (different baselines and focus settings) on the same GPU, with identical inputs, weights, and output pixels. Sharing the restored block instead of restoring it for every request cuts processing time by more than half.</p>
-    <div class="grid2">
-      <div class="card pad reveal">
-        <h3>Seven requests, time in seconds</h3>
-        <div class="chart-head"><span><i style="background:#a9b0bd"></i>Restore per request</span><span><i style="background:#16967b"></i>Shared reconstruction</span></div>
-        <div class="bars" data-bars data-min="0" data-max="92">
-          <div class="barrow"><div class="name"><b>1080p · first 21 frames</b><span class="delta">2.45×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="27.35">27.35</div></div><div class="track"><div class="fill ours" data-v="11.14">11.14</div></div></div></div>
-          <div class="barrow"><div class="name"><b>1080p · next 8 frames</b><span class="delta">2.42×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="10.25">10.25</div></div><div class="track"><div class="fill ours" data-v="4.23">4.23</div></div></div></div>
-          <div class="barrow"><div class="name"><b>4K · first 21 frames</b><span class="delta">2.26×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="91.68">91.68</div></div><div class="track"><div class="fill ours" data-v="40.60">40.60</div></div></div></div>
-          <div class="barrow"><div class="name"><b>4K · next 8 frames</b><span class="delta">2.25×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="34.85">34.85</div></div><div class="track"><div class="fill ours" data-v="15.45">15.45</div></div></div></div>
+    <div class="grid2 speedgrid">
+      <div class="card pad reveal speedcard" data-chart>
+        <div class="sc-head"><h3>Seven requests, time in seconds</h3><button class="mini-btn" data-replay type="button">Replay</button></div>
+        <div class="kpi"><span class="kpi-num"><span data-count>2.25</span>–<span data-count>2.45</span><i>×</i></span><span class="kpi-cap">faster when all seven requests <br>share one reconstruction</span></div>
+        <div class="chart-head"><span><i style="background:#a9b0bd"></i>Restore per request</span><span><i style="background:#16967b"></i>Shared reconstruction</span><span><i class="hatch"></i>Time saved</span></div>
+        <div class="bars" data-bars="race" data-min="0" data-max="92">
+          <div class="barrow" data-heat><div class="name"><b>1080p · first 21 frames</b><span class="delta">2.45×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="27.35">27.35</div></div><div class="track"><div class="ghost"></div><div class="fill ours" data-v="11.14">11.14</div></div></div></div>
+          <div class="barrow" data-heat><div class="name"><b>1080p · next 8 frames</b><span class="delta">2.42×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="10.25">10.25</div></div><div class="track"><div class="ghost"></div><div class="fill ours" data-v="4.23">4.23</div></div></div></div>
+          <div class="barrow" data-heat><div class="name"><b>4K · first 21 frames</b><span class="delta">2.26×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="91.68">91.68</div></div><div class="track"><div class="ghost"></div><div class="fill ours" data-v="40.60">40.60</div></div></div></div>
+          <div class="barrow" data-heat><div class="name"><b>4K · next 8 frames</b><span class="delta">2.25×</span></div><div class="pair"><div class="track"><div class="fill base" data-v="34.85">34.85</div></div><div class="track"><div class="ghost"></div><div class="fill ours" data-v="15.45">15.45</div></div></div></div>
         </div>
         <p class="metric">Codecs excluded. Output pixels are identical in both settings.</p>
       </div>
-      <div class="card pad reveal">
-        <h3>Against a specialist cascade</h3>
-        <p class="muted" style="margin:0 0 16px">Three 720p outputs (SR, stereo, refocus) over 1,000-frame MovieLQ streams, mean of ten streams on the same GPU. The cascade shares InfVSR's output between M2SVid and Any-to-Bokeh.</p>
-        <div class="bars" data-bars data-min="0" data-max="900">
-          <div class="barrow"><div class="name"><b>InfVSR → M2SVid + Any-to-Bokeh</b><span></span></div><div class="track"><div class="fill base" data-v="866.53">866.53 s</div></div></div>
-          <div class="barrow"><div class="name"><b>StreamVSR</b><span class="delta">5.27× faster</span></div><div class="track"><div class="fill ours" data-v="164.32">164.32 s</div></div></div>
+      <div class="card pad reveal speedcard" data-chart>
+        <div class="sc-head"><h3>Against a specialist cascade</h3><button class="mini-btn" data-replay type="button">Replay</button></div>
+        <div class="kpi"><span class="kpi-num"><span data-count>5.27</span><i>×</i></span><span class="kpi-cap">faster for SR, stereo, and refocus <br>delivered together</span></div>
+        <p class="muted sc-text">Three 720p outputs over 1,000-frame MovieLQ streams, mean of ten streams on the same GPU. The cascade shares InfVSR's output between M2SVid and Any-to-Bokeh.</p>
+        <div class="bars tall" data-bars="race" data-min="0" data-max="870">
+          <div class="heat" data-heat>
+            <div class="barrow"><div class="name"><b>InfVSR → M2SVid + Any-to-Bokeh</b><span>three models</span></div><div class="track"><div class="fill base" data-v="866.53">866.53 s</div></div></div>
+            <div class="barrow"><div class="name"><b>StreamVSR</b><span>one model</span></div><div class="track"><div class="ghost"></div><div class="fill ours" data-v="164.32">164.32 s</div></div></div>
+          </div>
         </div>
-        <p class="metric">The two systems produce different pixels (M2SVid computes its right view on a 512-square grid), so this compares runtime across methods only.</p>
+        <div class="fps">
+          <div><b><span data-count>1.15</span> <small>frames/s</small></b><span>Cascade</span></div>
+          <div class="ours"><b><span data-count>6.09</span> <small>frames/s</small></b><span>StreamVSR</span></div>
+        </div>
+        <p class="metric">Frames/s is 1,000 frames over the measured time, with all three outputs delivered. The two systems produce different pixels (M2SVid computes its right view on a 512-square grid), so this compares runtime only.</p>
       </div>
     </div>
   </div>
@@ -482,6 +490,6 @@
   /*K4-BEGIN*/window.K4 = [{"id":"helix-011","title":"Elephant on the savannah","source":"HelixWorld","box":[0.5,0.56],"in":[768,512],"out":[3072,2048]},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","box":[0.25,0.32],"in":[960,574],"out":[3840,2296]},{"id":"helix-084","title":"Blossom shrine","source":"HelixWorld","box":[0.5,0.5],"in":[768,512],"out":[3072,2048]},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","box":[0.5,0.5],"in":[960,554],"out":[3840,2216]},{"id":"helix-033","title":"Cathedral nave","source":"HelixWorld","box":[0.5,0.5],"in":[768,512],"out":[3072,2048]}];/*K4-END*/
   /*S3D-BEGIN*/window.S3D = [{"id":"helix-001","title":"Dog on a city street","source":"HelixWorld","conv":0.013,"m":0.021,"panel":[1024,682],"baseline":64.0},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","conv":0.0143,"m":0.0223,"panel":[1024,590],"baseline":16.0},{"id":"helix-107","title":"Sketched bookshop","source":"HelixWorld","conv":0.0143,"m":0.0223,"panel":[1024,682],"baseline":48.0},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","conv":0.0039,"m":0.0119,"panel":[1024,612],"baseline":24.0},{"id":"ling2-jungle-fortress","title":"Jungle glide","source":"LingBot-World 2.0","conv":0.0065,"m":0.0145,"panel":[1024,554],"baseline":32.0},{"id":"helix-044","title":"Cat in an alley","source":"HelixWorld","conv":0.0065,"m":0.0145,"panel":[1024,682],"baseline":64.0},{"id":"ling2-night-street","title":"Neon street","source":"LingBot-World 2.0","conv":0.0052,"m":0.0132,"panel":[1024,546],"baseline":64.0},{"id":"ling2-dinosaur","title":"Dinosaur","source":"LingBot-World 2.0","conv":0.0091,"m":0.0171,"panel":[1024,546],"baseline":64.0}];/*S3D-END*/
 </script>
-<script src="static/js/main.js?v=14"></script>
+<script src="static/js/main.js?v=15"></script>
 </body>
 </html>

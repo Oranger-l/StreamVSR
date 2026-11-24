@@ -429,13 +429,83 @@
     modal.addEventListener('close', () => $('#modal-video').pause());
   }
 
-  /* ---------- bar charts ---------- */
+  /* ---------- bar charts ----------
+     Each [data-heat] is one race: its bars share a single clock, so in "race" mode a bar stops when the clock reaches
+     its value and the hatched "time saved" area keeps growing behind the faster bar. "grow" just grows all bars.
+     Every part (race, headline number, tile) starts on its own when it scrolls into view; Replay restarts them all. */
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const easeIO = (x) => (x < .5 ? 2 * x * x : 1 - (2 - 2 * x) ** 2 / 2);
+  const easeOut = (x) => 1 - (1 - x) ** 3;
   $$('[data-bars]').forEach((box) => {
-    const lo = +box.dataset.min, hi = +box.dataset.max;
-    inView(box, (vis) => {
-      if (!vis) return;
-      $$('.fill', box).forEach((f) => { f.style.width = Math.max(8, ((+f.dataset.v - lo) / (hi - lo)) * 100) + '%'; });
-    }, { rootMargin: '0px 0px -10% 0px' });
+    const card = box.closest('[data-chart]') || box, race = box.dataset.bars === 'race';
+    const lo = +box.dataset.min, hi = +box.dataset.max, pct = (v) => Math.max(0, ((v - lo) / (hi - lo)) * 100);
+    const fillsAll = [];
+
+    const heatUnit = (el) => {
+      const fills = $$('.fill', el).map((f) => {
+        const text = f.textContent.trim(), m = text.match(/^([\d.]+)(.*)$/);
+        f.innerHTML = '<span class="val"></span>';
+        return { f, val: f.firstChild, text, v: +f.dataset.v, dec: (m[1].split('.')[1] || '').length, unit: m[2], ghost: $('.ghost', f.parentNode), need: 0 };
+      });
+      fillsAll.push(...fills);
+      const max = Math.max(...fills.map((o) => o.v)), delta = $('.delta', el);
+      return { el, dur: race ? 1900 : 1100, set: (x) => {
+        const k = race ? easeIO(x) : easeOut(x), t = race ? max * k : 0;
+        fills.forEach((o) => {
+          const cur = race ? Math.min(t, o.v) : lo + (o.v - lo) * k, end = cur >= o.v;
+          o.f.style.width = pct(cur) + '%';
+          o.val.style.opacity = pct(cur) > 0 && pct(cur) >= o.need ? 1 : 0; // hide a number until its bar has room for it
+          o.val.textContent = end ? o.text : cur.toFixed(o.dec) + o.unit;
+          if (o.ghost) o.ghost.style.width = pct(Math.max(cur, t)) + '%';
+          o.f.classList.toggle('done', end && x > 0);
+        });
+        if (delta) delta.classList.toggle('pop', x >= 1);
+      } };
+    };
+    const countUnit = (el) => {
+      const cs = $$('[data-count]', el).map((c) => ({ c, text: c.textContent, v: +c.textContent, dec: (c.textContent.split('.')[1] || '').length }));
+      return { el, dur: 1500, set: (x) => cs.forEach((o) => { o.c.textContent = x >= 1 ? o.text : (o.v * easeOut(x)).toFixed(o.dec); }) };
+    };
+    const units = [...$$('.kpi', card).map(countUnit), ...$$('[data-heat]', box).map(heatUnit), ...$$('.fps > div', card).map(countUnit)];
+
+    /* numbers sit inside a bar when its final width has room for them, otherwise just right of it */
+    const place = () => fillsAll.forEach((o) => {
+      const shown = o.val.textContent; o.val.textContent = o.text; o.f.classList.remove('out');
+      o.need = ((o.val.offsetWidth + 20) / (o.f.parentNode.clientWidth || 1)) * 100;
+      const out = pct(o.v) < o.need; o.f.classList.toggle('out', out); if (out) o.need = 0;
+      o.val.textContent = shown;
+    });
+    const show = (u) => { u.run = (u.run || 0) + 1; u.el.classList.add('pop'); u.set(1); };
+    const hide = (u) => { // back to the start, without animating the fade-out
+      u.run = (u.run || 0) + 1; u.el.style.transition = 'none'; u.el.classList.remove('pop'); u.set(0);
+      void u.el.offsetWidth; u.el.style.transition = '';
+    };
+    const play = (u, delay) => {
+      hide(u);
+      const id = u.run, t0 = performance.now();
+      const tick = (now) => {
+        if (id !== u.run) return;
+        const t = now - t0 - delay;
+        if (t >= 0) u.el.classList.add('pop');
+        const x = Math.min(1, Math.max(0, (t - 120) / u.dur));
+        u.set(x);
+        if (x < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+
+    place();
+    addEventListener('resize', place);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(place);
+    const rb = $('[data-replay]', card);
+    if (calm) { units.forEach(show); if (rb) rb.hidden = true; return; }
+    card.classList.add('armed');
+    units.forEach(hide);
+    const io = new IntersectionObserver((es) => es.filter((e) => e.isIntersecting).forEach((e, n) => {
+      io.unobserve(e.target); play(units.find((u) => u.el === e.target), n * 160);
+    }), { threshold: .3, rootMargin: '0px 0px -8% 0px' });
+    units.forEach((u) => io.observe(u.el));
+    if (rb) rb.addEventListener('click', () => units.forEach((u, n) => { io.unobserve(u.el); play(u, n * 160); }));
   });
 
   /* ---------- copy BibTeX ---------- */
