@@ -391,13 +391,19 @@ footer a { color: var(--ink-soft); }
 
 /* ---------- 4K viewer ---------- */
 .k4grid .zoom canvas { aspect-ratio: 16 / 10; }
+@media (min-width: 641px) { /* the two windows together are exactly as tall as the video */
+  .k4grid { align-items: stretch; }
+  .k4grid .zooms { grid-template-rows: 1fr 1fr; min-height: 0; }
+  .k4grid .zoom { min-height: 0; }
+  .k4grid .zoom canvas { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; }
+}
 .k4grid .cmp { align-self: start; }
 .k4box { pointer-events: auto; cursor: move; z-index: 3; touch-action: none; border-width: 2px; }
 .k4row { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; }
 .k4ctl { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .k4ctl .chip { padding: 5px 11px; }
+.k4ctl .chips { margin: 0; }
 @media (max-width: 640px) { .k4row { flex-direction: column; align-items: flex-start; } }
 
-.wmcmp { margin: 0 auto; }
 .k4load { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; font: 600 12.5px/1 var(--sans); color: #fff; background: rgba(0, 0, 0, .6); pointer-events: none; z-index: 4; }
 .k4load[hidden] { display: none; }

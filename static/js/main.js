@@ -115,24 +115,6 @@
     render();
   }
 
-  /* ---------- world-model replay ---------- */
-  const wm = $('#wm');
-  if (wm) {
-    const SRC = { H1: 'HelixWorld', H2: 'HelixWorld', H3: 'HelixWorld', S1: 'SANA-WM', L1: 'LingBot-World 2.0', L1b: 'LingBot-World 2.0', L2: 'LingBot-World 2.0' };
-    let cs = 'L1', left = 'bic';
-    const render = () => {
-      $('#wm-left').src = `static/img/wm/${cs}_${left}.jpg`;
-      $('#wm-right').src = `static/img/wm/${cs}_ours.jpg`;
-      $('#wm-llab').textContent = left === 'bic' ? 'Bicubic ×4' : 'Generated frame (reference)';
-      $('#wm-src').textContent = `Source: ${SRC[cs]} · input is the 4× area-downsampled frame`;
-    };
-    // never enlarge the crops more than 2x their native pixels
-    $('#wm-right').addEventListener('load', (e) => { $('.wmcmp', wm).style.maxWidth = e.target.naturalWidth * 2 + 'px'; });
-    chipGroup(wm, 'case', (v) => { cs = v; render(); });
-    chipGroup(wm, 'left', (v) => { left = v; render(); });
-    render();
-  }
-
   /* ---------- refocus scrubbers ---------- */
   $$('[data-scrub]').forEach((card) => {
     const v = $('video', card), r = $('input[type=range]', card), btn = $('[data-play]', card);
@@ -210,16 +192,21 @@
     ['pointerup', 'pointercancel'].forEach((n) => vid.addEventListener(n, () => { drag = null; }));
   });
 
-  /* ---------- 4K super-resolution viewer: input vs. StreamVSR, with 1:1 zoom windows ---------- */
-  const k4 = $('#k4');
-  if (k4 && window.K4 && window.K4.length) {
-    const lr = $('#k4lr'), sr = $('#k4sr'), cmp = $('#k4cmp'), boxEl = $('#k4box');
-    const zl = $('#k4zl'), zr = $('#k4zr'), cl = zl.getContext('2d'), cr = zr.getContext('2d');
-    let scene = null, zoom = 1, paused = false, visible = false, c = [0.5, 0.5]; // box centre, fraction of frame
+  /* ---------- paired-video viewers (4K super-resolution, world-model replay) ----------
+     Two synced videos under one slider, plus two zoom windows on the same region. cfg: { p, scenes, zoom, zoomLabel,
+     srcs(scene, left) -> {left, right, poster}, labels(scene, left) -> {left, right, zl, note}, left } where `p` prefixes
+     the element ids. Zoom z shows z device pixels per output pixel of the right video. */
+  const pairViewer = (cfg) => {
+    const root = $('#' + cfg.p); if (!root || !cfg.scenes || !cfg.scenes.length) return;
+    const el = (n) => $(`#${cfg.p}${n}`);
+    const lv = el('lr'), rv = el('sr'), cmp = el('cmp'), boxEl = el('box');
+    const zl = el('zl'), zr = el('zr'), cl = zl.getContext('2d'), cr = zr.getContext('2d');
+    let scene = null, left = cfg.left, zoom = cfg.zoom, paused = false, visible = false, c = [0.5, 0.5]; // box centre, fraction of frame
+    const size = () => (rv.videoWidth ? [rv.videoWidth, rv.videoHeight] : scene.out);
     const geom = () => { // box size in output pixels so that the right window shows output pixels at `zoom` x device pixels
       const dpr = window.devicePixelRatio || 1, cw = Math.round(zr.clientWidth * dpr), ch = Math.round(zr.clientHeight * dpr);
       if (zr.width !== cw || zr.height !== ch) { zr.width = zl.width = cw; zr.height = zl.height = ch; }
-      const [W, H] = scene.out, w = cw / zoom, h = ch / zoom;
+      const [W, H] = size(), k = Math.min(1, W / (cw / zoom), H / (ch / zoom)), w = (cw / zoom) * k, h = (ch / zoom) * k;
       c[0] = Math.min(1 - w / W / 2, Math.max(w / W / 2, c[0])); c[1] = Math.min(1 - h / H / 2, Math.max(h / H / 2, c[1]));
       return { W, H, w, h, x: c[0] * W - w / 2, y: c[1] * H - h / 2 };
     };
@@ -229,40 +216,45 @@
       Object.assign(boxEl.style, { left: (g.x / g.W) * 100 + '%', top: (g.y / g.H) * 100 + '%', width: (g.w / g.W) * 100 + '%', height: (g.h / g.H) * 100 + '%' });
     };
     const draw = () => {
-      if (!scene || sr.readyState < 2 || lr.readyState < 2) return;
-      const g = geom(), s = scene.in[0] / scene.out[0];
+      if (!scene || rv.readyState < 2 || lv.readyState < 2 || !rv.videoWidth || !lv.videoWidth) return;
+      const g = geom(), k = lv.videoWidth / g.W;
       cr.imageSmoothingEnabled = zoom !== 1; cr.imageSmoothingQuality = 'high';
-      cr.drawImage(sr, g.x, g.y, g.w, g.h, 0, 0, zr.width, zr.height);
-      if (Math.abs(lr.currentTime - sr.currentTime) > 0.08) return; // keep the windows on the same frame
+      cr.drawImage(rv, g.x, g.y, g.w, g.h, 0, 0, zr.width, zr.height);
+      if (Math.abs(lv.currentTime - rv.currentTime) > 0.08) return; // keep the windows on the same frame
       cl.imageSmoothingEnabled = true; cl.imageSmoothingQuality = 'high';
-      cl.drawImage(lr, g.x * s, g.y * s, g.w * s, g.h * s, 0, 0, zl.width, zl.height);
+      cl.drawImage(lv, g.x * k, g.y * k, g.w * k, g.h * k, 0, 0, zl.width, zl.height);
     };
     if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-      const loop = () => { draw(); sr.requestVideoFrameCallback(loop); }; sr.requestVideoFrameCallback(loop);
-    } else { const tick = () => { draw(); if (!sr.paused) requestAnimationFrame(tick); }; sr.addEventListener('play', tick); }
-    ['loadeddata', 'seeked'].forEach((e) => { sr.addEventListener(e, draw); lr.addEventListener(e, draw); });
-    const sync = () => { if (Math.abs(lr.currentTime - sr.currentTime) > 0.05) lr.currentTime = sr.currentTime; };
-    sr.addEventListener('canplay', () => { $('#k4load').hidden = true; });
-    sr.addEventListener('timeupdate', sync); sr.addEventListener('seeked', sync);
-    const play = () => { if (!visible || paused) return; lr.currentTime = sr.currentTime; sr.play().catch(() => {}); lr.play().catch(() => {}); };
-    const setScene = (id) => {
-      scene = window.K4.find((s) => s.id === id); c = scene.box.slice();
-      sr.poster = `static/video/sr4k/${id}.jpg`;
-      $('#k4load').hidden = false;
-      sr.src = `static/video/sr4k/${id}_sr.mp4`; lr.src = `static/video/sr4k/${id}_lr.mp4`;
-      $('#k4llab').textContent = `Input ${scene.in[0]}×${scene.in[1]}`;
-      $('#k4rlab').textContent = `StreamVSR ${scene.out[0]}×${scene.out[1]}`;
-      $('#k4note').textContent = `${scene.title} · ${scene.source}. The generator's frames (${scene.in[0]}×${scene.in[1]}) go in as they are; StreamVSR outputs ${scene.out[0]}×${scene.out[1]}. Drag the orange box to choose the zoom region.`;
-      place(); play();
+      const loop = () => { draw(); rv.requestVideoFrameCallback(loop); }; rv.requestVideoFrameCallback(loop);
+    } else { const tick = () => { draw(); if (!rv.paused) requestAnimationFrame(tick); }; rv.addEventListener('play', tick); }
+    ['loadeddata', 'seeked'].forEach((e) => { rv.addEventListener(e, () => { place(); draw(); }); lv.addEventListener(e, draw); });
+    const sync = () => { if (Math.abs(lv.currentTime - rv.currentTime) > 0.05) lv.currentTime = rv.currentTime; };
+    rv.addEventListener('canplay', () => { el('load').hidden = true; });
+    rv.addEventListener('timeupdate', sync); rv.addEventListener('seeked', sync);
+    lv.addEventListener('loadeddata', () => { lv.currentTime = rv.currentTime; if (!rv.paused) lv.play().catch(() => {}); });
+    const play = () => { if (!visible || paused) return; lv.currentTime = rv.currentTime; rv.play().catch(() => {}); lv.play().catch(() => {}); };
+    const text = () => {
+      const t = cfg.labels(scene, left);
+      el('llab').textContent = t.left; el('rlab').textContent = t.right; el('note').textContent = t.note; el('zll').textContent = t.zl;
+      el('zlab').textContent = cfg.zoomLabel(zoom);
     };
-    const chips = $('[data-group="k4clip"]', k4);
-    window.K4.forEach((s, i) => { const b = document.createElement('button'); b.className = 'chip' + (i ? '' : ' on'); b.dataset.v = s.id; b.textContent = s.title; chips.appendChild(b); });
-    chipGroup(k4, 'k4clip', setScene);
-    chipGroup(k4, 'k4zoom', (v) => { zoom = +v; $('#k4zlab').textContent = zoom === 1 ? 'StreamVSR · 1:1 pixels' : 'StreamVSR · 2× pixels'; place(); draw(); });
-    const pz = $('#k4pause');
+    const setScene = (id) => {
+      scene = cfg.scenes.find((x) => x.id === id); c = scene.box.slice();
+      const f = cfg.srcs(scene, left);
+      rv.poster = f.poster; el('load').hidden = false;
+      rv.src = f.right; lv.src = f.left;
+      text(); place(); play();
+    };
+    const setLeft = (v) => { left = v; const f = cfg.srcs(scene, left); lv.src = f.left; text(); };
+    const chips = $(`[data-group="${cfg.p}clip"]`, root);
+    cfg.scenes.forEach((x, i) => { const b = document.createElement('button'); b.className = 'chip' + (i ? '' : ' on'); b.dataset.v = x.id; b.textContent = x.title; chips.appendChild(b); });
+    chipGroup(root, cfg.p + 'clip', setScene);
+    chipGroup(root, cfg.p + 'left', setLeft);
+    chipGroup(root, cfg.p + 'zoom', (v) => { zoom = +v; text(); place(); draw(); });
+    const pz = el('pause');
     pz.addEventListener('click', () => {
       paused = !paused; pz.textContent = paused ? '▶ Play' : '❚❚ Pause';
-      if (paused) { sr.pause(); lr.pause(); lr.currentTime = sr.currentTime; } else play();
+      if (paused) { rv.pause(); lv.pause(); lv.currentTime = rv.currentTime; } else play();
     });
     // dragging the box moves the zoom region (and must not move the slider)
     let drag = null;
@@ -275,12 +267,32 @@
       c = [drag.c[0] + (e.clientX - drag.x) / drag.w, drag.c[1] + (e.clientY - drag.y) / drag.h]; place(); draw();
     });
     ['pointerup', 'pointercancel'].forEach((n) => boxEl.addEventListener(n, (e) => { e.stopPropagation(); drag = null; }));
-    window.addEventListener('resize', () => { place(); draw(); });
-    inView(k4, (vis) => {
+    new ResizeObserver(() => { place(); draw(); }).observe(zr); // the windows follow the video's height
+    inView(root, (vis) => {
       visible = vis;
-      if (vis) { if (!scene) setScene(window.K4[0].id); else play(); } else { sr.pause(); lr.pause(); }
+      if (vis) { if (!scene) setScene(cfg.scenes[0].id); else play(); } else { rv.pause(); lv.pause(); }
     }, { rootMargin: '100px' });
-  }
+  };
+
+  pairViewer({
+    p: 'k4', scenes: window.K4, zoom: 1, left: 'lr',
+    zoomLabel: (z) => (z === 1 ? 'StreamVSR · 1:1 pixels' : 'StreamVSR · 2× pixels'),
+    srcs: (x) => ({ left: `static/video/sr4k/${x.id}_lr.mp4`, right: `static/video/sr4k/${x.id}_sr.mp4`, poster: `static/video/sr4k/${x.id}.jpg` }),
+    labels: (x) => ({
+      left: `Input ${x.in[0]}×${x.in[1]}`, right: `StreamVSR ${x.out[0]}×${x.out[1]}`, zl: 'Input · enlarged',
+      note: `${x.title} · ${x.source}. The generator's frames (${x.in[0]}×${x.in[1]}) go in as they are; StreamVSR outputs ${x.out[0]}×${x.out[1]}. Drag the orange box to choose the zoom region.`,
+    }),
+  });
+
+  pairViewer({
+    p: 'wm', scenes: window.WM, zoom: 2, left: 'bic',
+    zoomLabel: (z) => `StreamVSR · ${z}×`,
+    srcs: (x, l) => ({ left: `static/video/wm/${x.id}_${l}.mp4`, right: `static/video/wm/${x.id}_ours.mp4`, poster: `static/video/wm/${x.id}.jpg` }),
+    labels: (x, l) => {
+      const n = l === 'bic' ? 'Bicubic ×4' : 'Generated frame (reference)';
+      return { left: n, right: 'StreamVSR ×4', zl: n, note: `${x.title} · ${x.source}. Input ${x.out[0] / 4}×${x.out[1] / 4} (the generated frame reduced 4×), output ${x.out[0]}×${x.out[1]}, the generator's own size. Drag the orange box to choose the zoom region.` };
+    },
+  });
 
   /* ---------- 3D viewer: one video per scene holding [left | right | depth] side by side ---------- */
   const s3 = $('#s3');
@@ -359,9 +371,9 @@
     const setScene = (id) => {
       scene = window.S3D.find((s) => s.id === id);
       lastT = -1; stage.classList.remove('ready');
-      stage.style.backgroundImage = `url(static/video/stereo3d/${id}.jpg)`;
+      stage.style.backgroundImage = `url(static/video/stereo3d/${id}.jpg?v=2)`;
       $('#s3lab').textContent = `${scene.title} · ${scene.source}`;
-      video.src = `static/video/stereo3d/${id}.mp4`;
+      video.src = `static/video/stereo3d/${id}.mp4?v=2`;
       if (visible && !frozen) video.play().catch(() => {});
       size();
     };

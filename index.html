@@ -16,7 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="static/css/style.css?v=14">
+<link rel="stylesheet" href="static/css/style.css?v=15">
 </head>
 <body>
 
@@ -145,7 +145,7 @@
           <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
         </div>
         <div class="zooms">
-          <div class="zoom far"><canvas id="k4zl" width="640" height="400"></canvas><span class="zlab">Input · enlarged</span></div>
+          <div class="zoom far"><canvas id="k4zl" width="640" height="400"></canvas><span class="zlab" id="k4zll">Input · enlarged</span></div>
           <div class="zoom near"><canvas id="k4zr" width="640" height="400"></canvas><span class="zlab" id="k4zlab">StreamVSR · 1:1 pixels</span></div>
         </div>
       </div>
@@ -289,8 +289,8 @@
     </div>
     <div class="s3notes">
       <div><b>One pass, both eyes</b>The left view is the super-resolved output; the right view is rendered from the same restored block, so texture matches in both eyes.</div>
-      <div><b>Input</b>Public world-model demos. The generator's frames are area-downsampled 4× (HelixWorld 2×) before StreamVSR; outputs are 1480–1536 px wide, shown here at 1024 px per eye.</div>
-      <div><b>Display</b>Each scene uses the widest stereo baseline at which the right view stays clean around near objects; the screen plane sits at a mid-scene disparity. Clips loop forward and back.</div>
+      <div><b>Input</b>Public world-model demos. The generator's frames are area-downsampled to 576 px wide (640 px for the bakery robot) before StreamVSR; outputs are 2304–2560 px wide, shown here at 1280 px per eye.</div>
+      <div><b>Baseline</b>Chosen per scene: we keep it small enough that the right view stays clean at the depth edges around near objects. Much wider baselines show fringes where hidden background is exposed. The screen plane sits at a mid-scene disparity, and clips loop forward and back.</div>
     </div>
   </div>
 </section>
@@ -300,31 +300,36 @@
   <div class="wrap">
     <div class="eyebrow">Generated video</div>
     <h2 class="title">Sharper worlds from world models</h2>
-    <p class="lead">The paper's replay protocol: generated frames are reduced 4× and restored to the generator's own resolution, so these crops are at most 1480 px wide and are shown at no more than 2× their native size. StreamVSR recovers straighter structure than bicubic and, in many crops, more than the generator itself produced. For full 4K output see <a href="#sr">4× super-resolution</a>.</p>
+    <p class="lead">The paper's replay protocol: every generated frame is reduced 4×, then restored to the generator's own size (768×512 for HelixWorld, up to 1480×800 for LingBot-World 2.0). Play the clips and compare StreamVSR with bicubic or with the generator's own frame. For full 4K output see <a href="#sr">4× super-resolution</a>.</p>
     <div class="card panel reveal" id="wm">
-      <div class="chiprow">
-        <span class="lbl">Scene</span>
-        <div class="chips" data-group="case">
-          <button class="chip on" data-v="L1">Jungle fortress</button>
-          <button class="chip" data-v="L2">Torchlit columns</button>
-          <button class="chip" data-v="H1">Cathedral nave</button>
-          <button class="chip" data-v="H3">Cobblestones</button>
-          <button class="chip" data-v="L1b">Jungle canopy</button>
-        </div>
-      </div>
+      <div class="chiprow"><span class="lbl">Scene</span><div class="chips" data-group="wmclip"></div></div>
       <div class="chiprow">
         <span class="lbl">Left side</span>
-        <div class="chips" data-group="left">
+        <div class="chips" data-group="wmleft">
           <button class="chip on" data-v="bic">Bicubic ×4</button>
           <button class="chip" data-v="gen">Generated frame</button>
         </div>
-        <span class="small muted" id="wm-src"></span>
       </div>
-      <div class="cmp wmcmp" data-cmp>
-        <img id="wm-left" src="static/img/wm/L1_bic.jpg" alt="left">
-        <div class="top"><img id="wm-right" src="static/img/wm/L1_ours.jpg" alt="StreamVSR"></div>
-        <span class="lab l" id="wm-llab">Bicubic ×4</span><span class="lab r">StreamVSR ×4</span>
-        <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+      <div class="zoomgrid k4grid">
+        <div class="cmp" data-cmp id="wmcmp">
+          <video id="wmlr" muted loop playsinline preload="auto"></video>
+          <div class="top"><video id="wmsr" muted loop playsinline preload="auto"></video></div>
+          <span class="lab l" id="wmllab">Bicubic ×4</span><span class="lab r" id="wmrlab">StreamVSR ×4</span>
+          <div class="zbox near k4box" id="wmbox" title="Drag to move the zoom region"></div>
+          <div class="k4load" id="wmload">Loading video…</div>
+          <div class="bar"></div><div class="knob">⇆</div><div class="hint">drag to compare</div>
+        </div>
+        <div class="zooms">
+          <div class="zoom far"><canvas id="wmzl" width="640" height="400"></canvas><span class="zlab" id="wmzll">Bicubic ×4</span></div>
+          <div class="zoom near"><canvas id="wmzr" width="640" height="400"></canvas><span class="zlab" id="wmzlab">StreamVSR · 2×</span></div>
+        </div>
+      </div>
+      <div class="row2 k4row">
+        <span class="small muted" id="wmnote"></span>
+        <div class="k4ctl">
+          <div class="chips" data-group="wmzoom"><button class="chip on" data-v="2">2×</button><button class="chip" data-v="3">3×</button></div>
+          <button class="mini-btn" id="wmpause">❚❚ Pause</button>
+        </div>
       </div>
     </div>
     <div class="split" style="margin-top:22px;align-items:start">
@@ -344,7 +349,7 @@
       <div class="reveal">
         <ul class="bullets">
           <li><b>Out of distribution.</b> Generated video is out of distribution for StreamVSR, yet the frozen model lowers LPIPS and DISTS for all four generators.</li>
-          <li><b>Repairs generator artifacts.</b> Wavy skylight grids, mushy window frames, and melted cobblestones come back straighter and crisper.</li>
+          <li><b>Restores structure.</b> Vault ribs, brick courses, and cobblestones come back straight and crisp where bicubic stays blurred.</li>
           <li><b>Detail is synthesized.</b> Restored texture can differ from the original frame; it is sharper structure, not a pixel-exact copy.</li>
         </ul>
       </div>
@@ -487,9 +492,10 @@
   window.GALLERY = [["helix-084", "Cherry blossoms in a shrine courtyard", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-033", "Gothic cathedral nave", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-005", "Museum gallery and carved stone", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-011", "Elephant on the savannah", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-044", "Cobblestone alley and cat", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["helix-068", "Ivy, brickwork and cobblestones", "HelixWorld", "https://huggingface.co/datasets/NoizAI/HelixWorld-WBench-Navi"], ["coastal-town", "Animated coastal town", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["mural", "Flying figure in a painted mural", "LingBot-World", "https://technology.robbyant.com/lingbot-world"], ["ling2-jungle-fortress", "Jungle canopy and distant fortress", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-torch-courtyard", "Torchlit stone courtyard", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-cloth", "Robotic arms and cloth on a wooden bench", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-robot-bakery", "Robotic arm in a rustic bakery", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["ling2-shanghai-riverfront", "Shanghai waterfront and dogs", "LingBot-World 2.0", "https://technology.robbyant.com/lingbot-world-v2"], ["sana-alpine-fence", "Wildflowers and split-rail alpine fences", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-rain-trail", "Dense rain-soaked tropical trail", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["sana-desert-ruins", "Sunlit canyon and ancient ruins", "SANA-WM", "https://nvlabs.github.io/Sana/WM/"], ["snow", "Snow village", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"], ["waterfall", "Tropical waterfall basin", "SolarWM", "https://junchao-cs.github.io/SolarWM-Web/"]];
   window.HERO = ["helix-084", "helix-033", "helix-005", "helix-011", "helix-044", "helix-068", "coastal-town", "mural", "ling2-jungle-fortress", "ling2-torch-courtyard", "ling2-robot-cloth", "ling2-robot-bakery", "ling2-shanghai-riverfront", "sana-alpine-fence", "sana-rain-trail", "sana-desert-ruins", "snow", "waterfall", "helix-001", "library", "ling2-alpine-game", "sana-dollhouse", "sana-snow-ridge", "viaduct"];
   // 3D scenes: filled from static/video/stereo3d/meta.json (S3D-BEGIN/END is rewritten by tools)
+  /*WM-BEGIN*/window.WM = [{"id":"ling2-jungle-fortress","title":"Jungle fortress","source":"LingBot-World 2.0","out":[1480,800],"box":[0.5,0.66]},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","out":[1344,804],"box":[0.66,0.42]},{"id":"helix-033","title":"Cathedral nave","source":"HelixWorld","out":[768,512],"box":[0.5,0.3]},{"id":"helix-044","title":"Cobblestone alley","source":"HelixWorld","out":[768,512],"box":[0.3,0.75]},{"id":"helix-068","title":"Ivy wall","source":"HelixWorld","out":[768,512],"box":[0.5,0.2]}];/*WM-END*/
   /*K4-BEGIN*/window.K4 = [{"id":"helix-011","title":"Elephant on the savannah","source":"HelixWorld","box":[0.5,0.56],"in":[768,512],"out":[3072,2048]},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","box":[0.25,0.32],"in":[960,574],"out":[3840,2296]},{"id":"helix-084","title":"Blossom shrine","source":"HelixWorld","box":[0.5,0.5],"in":[768,512],"out":[3072,2048]},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","box":[0.5,0.5],"in":[960,554],"out":[3840,2216]},{"id":"helix-033","title":"Cathedral nave","source":"HelixWorld","box":[0.5,0.5],"in":[768,512],"out":[3072,2048]}];/*K4-END*/
-  /*S3D-BEGIN*/window.S3D = [{"id":"helix-001","title":"Dog on a city street","source":"HelixWorld","conv":0.013,"m":0.021,"panel":[1024,682],"baseline":64.0},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","conv":0.0143,"m":0.0223,"panel":[1024,590],"baseline":16.0},{"id":"helix-107","title":"Sketched bookshop","source":"HelixWorld","conv":0.0143,"m":0.0223,"panel":[1024,682],"baseline":48.0},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","conv":0.0039,"m":0.0119,"panel":[1024,612],"baseline":24.0},{"id":"ling2-jungle-fortress","title":"Jungle glide","source":"LingBot-World 2.0","conv":0.0065,"m":0.0145,"panel":[1024,554],"baseline":32.0},{"id":"helix-044","title":"Cat in an alley","source":"HelixWorld","conv":0.0065,"m":0.0145,"panel":[1024,682],"baseline":64.0},{"id":"ling2-night-street","title":"Neon street","source":"LingBot-World 2.0","conv":0.0052,"m":0.0132,"panel":[1024,546],"baseline":64.0},{"id":"ling2-dinosaur","title":"Dinosaur","source":"LingBot-World 2.0","conv":0.0091,"m":0.0171,"panel":[1024,546],"baseline":64.0}];/*S3D-END*/
+  /*S3D-BEGIN*/window.S3D = [{"id":"helix-001","title":"Dog on a city street","source":"HelixWorld","conv":0.0091,"m":0.0171,"panel":[1280,854],"baseline":64.0},{"id":"helix-107","title":"Sketched bookshop","source":"HelixWorld","conv":0.013,"m":0.021,"panel":[1280,854],"baseline":64.0},{"id":"helix-044","title":"Cat in an alley","source":"HelixWorld","conv":0.0039,"m":0.0119,"panel":[1280,854],"baseline":48.0},{"id":"ling2-torch-courtyard","title":"Torchlit courtyard","source":"LingBot-World 2.0","conv":0.0013,"m":0.0093,"panel":[1280,764],"baseline":12.0},{"id":"ling2-robot-bakery","title":"Bakery robot","source":"LingBot-World 2.0","conv":0.0039,"m":0.0119,"panel":[1280,740],"baseline":8.0},{"id":"ling2-jungle-fortress","title":"Jungle glide","source":"LingBot-World 2.0","conv":0.0026,"m":0.0106,"panel":[1280,694],"baseline":24.0},{"id":"ling2-dinosaur","title":"Dinosaur","source":"LingBot-World 2.0","conv":0.0026,"m":0.0106,"panel":[1280,680],"baseline":32.0},{"id":"ling2-night-street","title":"Neon street","source":"LingBot-World 2.0","conv":0.0026,"m":0.0106,"panel":[1280,680],"baseline":32.0}];/*S3D-END*/
 </script>
-<script src="static/js/main.js?v=15"></script>
+<script src="static/js/main.js?v=16"></script>
 </body>
 </html>
